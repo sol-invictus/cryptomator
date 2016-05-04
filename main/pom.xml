@@ -200,6 +200,13 @@
 				<artifactId>guava</artifactId>
 				<version>19.0</version>
 			</dependency>
+			
+			<!-- fuse-jna -->
+			<dependency>
+				<groupId>org.cryptomator</groupId>
+				<artifactId>fuse-jna</artifactId>
+				<version>1.0.3-SNAPSHOT</version>
+			</dependency>
 
 			<!-- DI -->
 			<dependency>
