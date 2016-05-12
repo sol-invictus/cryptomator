@@ -8,6 +8,8 @@
  *******************************************************************************/
 package org.cryptomator.filesystem.delegating;
 
+import static org.cryptomator.filesystem.CreateMode.FAIL_IF_MISSING;
+
 import java.time.Instant;
 import java.util.Optional;
 
@@ -107,9 +109,9 @@ public class DelegatingFileTest {
 		File mockFile = Mockito.mock(File.class);
 		WritableFile mockWritableFile = Mockito.mock(WritableFile.class);
 
-		Mockito.when(mockFile.openWritable()).thenReturn(mockWritableFile);
+		Mockito.when(mockFile.openWritable(FAIL_IF_MISSING)).thenReturn(mockWritableFile);
 		DelegatingFile<?> delegatingFile = new TestDelegatingFile(null, mockFile);
-		Assert.assertNotNull(delegatingFile.openWritable());
+		Assert.assertNotNull(delegatingFile.openWritable(FAIL_IF_MISSING));
 	}
 
 	@Test

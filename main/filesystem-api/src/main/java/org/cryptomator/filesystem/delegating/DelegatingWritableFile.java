@@ -32,18 +32,18 @@ public class DelegatingWritableFile implements WritableFile {
 	}
 
 	@Override
-	public int write(ByteBuffer source) throws UncheckedIOException {
-		return delegate.write(source);
-	}
-
-	@Override
-	public void position(long position) throws UncheckedIOException {
-		delegate.position(position);
+	public void write(long position, ByteBuffer source) throws UncheckedIOException {
+		delegate.write(position, source);
 	}
 
 	@Override
 	public void close() throws UncheckedIOException {
 		delegate.close();
+	}
+
+	@Override
+	public void flush() throws UncheckedIOException {
+		delegate.flush();
 	}
 
 }

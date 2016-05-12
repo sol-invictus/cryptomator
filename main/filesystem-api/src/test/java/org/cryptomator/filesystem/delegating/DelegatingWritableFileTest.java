@@ -8,6 +8,8 @@
  *******************************************************************************/
 package org.cryptomator.filesystem.delegating;
 
+import static org.mockito.Mockito.verify;
+
 import java.nio.ByteBuffer;
 
 import org.cryptomator.filesystem.WritableFile;
@@ -47,19 +49,18 @@ public class DelegatingWritableFileTest {
 		DelegatingWritableFile delegatingWritableFile = new DelegatingWritableFile(mockWritableFile);
 
 		ByteBuffer buf = ByteBuffer.allocate(4);
-		Mockito.when(mockWritableFile.write(buf)).thenReturn(4);
-		Assert.assertEquals(4, delegatingWritableFile.write(buf));
-		Mockito.verify(mockWritableFile).write(buf);
+		delegatingWritableFile.write(3L, buf);
+		verify(mockWritableFile).write(3L, buf);
 	}
 
 	@Test
-	public void testPosition() {
+	public void testFlush() {
 		WritableFile mockWritableFile = Mockito.mock(WritableFile.class);
 		@SuppressWarnings("resource")
 		DelegatingWritableFile delegatingWritableFile = new DelegatingWritableFile(mockWritableFile);
 
-		delegatingWritableFile.position(42);
-		Mockito.verify(mockWritableFile).position(42);
+		delegatingWritableFile.flush();
+		verify(mockWritableFile).flush();
 	}
 
 	@Test

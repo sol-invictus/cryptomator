@@ -8,8 +8,12 @@
  *******************************************************************************/
 package org.cryptomator.filesystem.delegating;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
+
 import java.nio.ByteBuffer;
 
+import org.cryptomator.filesystem.ReadResult;
 import org.cryptomator.filesystem.ReadableFile;
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,9 +41,8 @@ public class DelegatingReadableFileTest {
 		DelegatingReadableFile delegatingReadableFile = new DelegatingReadableFile(mockReadableFile);
 
 		ByteBuffer buf = ByteBuffer.allocate(4);
-		Mockito.when(mockReadableFile.read(buf)).thenReturn(4);
-		Assert.assertEquals(4, delegatingReadableFile.read(buf));
-		Mockito.verify(mockReadableFile).read(buf);
+		when(mockReadableFile.read(1L, buf)).thenReturn(ReadResult.EOF_REACHED);
+		assertEquals(ReadResult.EOF_REACHED, delegatingReadableFile.read(1L, buf));
 	}
 
 	@Test
@@ -51,16 +54,6 @@ public class DelegatingReadableFileTest {
 		Mockito.when(mockReadableFile.size()).thenReturn(42l);
 		Assert.assertEquals(42l, delegatingReadableFile.size());
 		Mockito.verify(mockReadableFile).size();
-	}
-
-	@Test
-	public void testPosition() {
-		ReadableFile mockReadableFile = Mockito.mock(ReadableFile.class);
-		@SuppressWarnings("resource")
-		DelegatingReadableFile delegatingReadableFile = new DelegatingReadableFile(mockReadableFile);
-
-		delegatingReadableFile.position(42);
-		Mockito.verify(mockReadableFile).position(42);
 	}
 
 	@Test

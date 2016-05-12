@@ -11,6 +11,7 @@ package org.cryptomator.filesystem.delegating;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 
+import org.cryptomator.filesystem.ReadResult;
 import org.cryptomator.filesystem.ReadableFile;
 
 public class DelegatingReadableFile implements ReadableFile {
@@ -27,18 +28,13 @@ public class DelegatingReadableFile implements ReadableFile {
 	}
 
 	@Override
-	public int read(ByteBuffer target) throws UncheckedIOException {
-		return delegate.read(target);
+	public ReadResult read(long position, ByteBuffer target) throws UncheckedIOException {
+		return delegate.read(position, target);
 	}
 
 	@Override
 	public long size() throws UncheckedIOException {
 		return delegate.size();
-	}
-
-	@Override
-	public void position(long position) throws UncheckedIOException {
-		delegate.position(position);
 	}
 
 	@Override

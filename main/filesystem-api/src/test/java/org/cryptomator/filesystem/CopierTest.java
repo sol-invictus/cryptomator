@@ -1,22 +1,21 @@
 package org.cryptomator.filesystem;
 
+import static java.lang.Math.min;
 import static java.util.Arrays.asList;
-import static org.cryptomator.common.test.matcher.ContainsMatcher.contains;
-import static org.cryptomator.common.test.mockito.Answers.collectParameters;
-import static org.cryptomator.common.test.mockito.Answers.consecutiveAnswers;
-import static org.cryptomator.common.test.mockito.Answers.value;
-import static org.cryptomator.filesystem.File.EOF;
-import static org.hamcrest.CoreMatchers.is;
+import static org.cryptomator.filesystem.CreateMode.CREATE_IF_MISSING;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Random;
 import java.util.stream.Stream;
 
 import org.junit.Before;
@@ -44,6 +43,8 @@ public class CopierTest {
 
 	public class CopyFiles {
 
+		private static final int MIBIBYTE = 1024 * 1024;
+
 		@Mock
 		private File source;
 
@@ -59,79 +60,76 @@ public class CopierTest {
 		@Before
 		public void setUp() {
 			when(source.openReadable()).thenReturn(readable);
-			when(destination.openWritable()).thenReturn(writable);
-		}
-
-		@Test
-		public void testCopyFileOpensFilesInSortedOrderIfSourceIsSmallerDestination() {
-			mockCompareToWithOrder(source, destination);
-			when(readable.read(any())).thenReturn(EOF);
-
-			Copier.copy(source, destination);
-
-			InOrder inOrder = inOrder(source, destination);
-			inOrder.verify(source).openReadable();
-			inOrder.verify(destination).openWritable();
-		}
-
-		@Test
-		public void testCopyFileOpensFilesInSortedOrderIfDestinationIsSmallerSource() {
-			mockCompareToWithOrder(destination, source);
-			when(readable.read(any())).thenReturn(EOF);
-
-			Copier.copy(source, destination);
-
-			InOrder inOrder = inOrder(source, destination);
-			inOrder.verify(destination).openWritable();
-			inOrder.verify(source).openReadable();
+			when(destination.openWritable(CREATE_IF_MISSING)).thenReturn(writable);
 		}
 
 		@Test
 		public void testCopyFileReadsAndWritesReadableSourceAndWritableDestintationUntilEof() {
-			int irrelevantValue = 0;
-			Collection<byte[]> written = new ArrayList<>();
-			mockCompareToWithOrder(source, destination);
-			byte[] read1 = {1, 48, 32, 33, 22};
-			byte[] read2 = {4, 3, 1, -2, -8};
-			when(readable.read(any())).then(consecutiveAnswers(fillBufferWith(read1), fillBufferWith(read2), value(EOF)));
-			when(writable.write(any())).then(collectParameters(value(irrelevantValue), (ByteBuffer buffer) -> {
-				byte[] data = new byte[buffer.remaining()];
-				buffer.get(data);
-				written.add(data);
-			}));
+			ByteBuffer data = ByteBuffer.allocate(1 * MIBIBYTE);
+			ByteBuffer result = ByteBuffer.allocate(1 * MIBIBYTE);
+			fillWithRandomData(data);
+			when(readable.read(anyLong(), any())).then(readFrom(data));
+			doAnswer(writeTo(result)).when(writable).write(anyLong(), any());
 
 			Copier.copy(source, destination);
 
 			InOrder inOrder = inOrder(readable, writable);
 			inOrder.verify(writable).truncate();
-			inOrder.verify(readable).read(any());
-			inOrder.verify(writable).write(any());
-			inOrder.verify(readable).read(any());
-			inOrder.verify(writable).write(any());
-			inOrder.verify(readable).read(any());
-			inOrder.verify(readable).close();
 			inOrder.verify(writable).close();
+			inOrder.verify(readable).close();
 
-			assertThat(written, contains(is(read1), is(read2)));
+			result.clear();
+			data.clear();
+			assertThat(result, is(equalTo(data)));
 		}
 
-		private Answer<Integer> fillBufferWith(byte[] data) {
-			return new Answer<Integer>() {
+		private void fillWithRandomData(ByteBuffer data) {
+			Random random = new Random();
+			byte[] randomBytes = new byte[1024];
+			while (data.hasRemaining()) {
+				random.nextBytes(randomBytes);
+				data.put(randomBytes, 0, min(data.remaining(), randomBytes.length));
+			}
+		}
+
+		private Answer<ReadResult> readFrom(ByteBuffer data) {
+			return new Answer<ReadResult>() {
 				@Override
-				public Integer answer(InvocationOnMock invocation) throws Throwable {
-					ByteBuffer buffer = invocation.getArgumentAt(0, ByteBuffer.class);
-					for (byte value : data) {
-						buffer.put(value);
+				public ReadResult answer(InvocationOnMock invocation) throws Throwable {
+					Long position = invocation.getArgumentAt(0, Long.class);
+					ByteBuffer buffer = invocation.getArgumentAt(1, ByteBuffer.class);
+					if (position >= data.capacity()) {
+						return ReadResult.EOF;
+					} else {
+						data.position(position.intValue());
+						data.limit(min(data.position() + buffer.remaining(), data.capacity()));
+						buffer.put(data);
+						if (buffer.hasRemaining()) {
+							return ReadResult.EOF_REACHED;
+						} else {
+							return ReadResult.NO_EOF;
+						}
 					}
-					return data.length;
 				}
 
 			};
 		}
 
-		private void mockCompareToWithOrder(File first, File last) {
-			when(first.compareTo(last)).thenReturn(-1);
-			when(last.compareTo(first)).thenReturn(1);
+		private Answer<Void> writeTo(ByteBuffer result) {
+			return new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					Long position = invocation.getArgumentAt(0, Long.class);
+					ByteBuffer buffer = invocation.getArgumentAt(1, ByteBuffer.class);
+					result.position(position.intValue());
+					result.put(buffer);
+					if (buffer.hasRemaining()) {
+						throw new IllegalStateException("Attempt to write more bytes than read");
+					}
+					return null;
+				}
+
+			};
 		}
 
 	}

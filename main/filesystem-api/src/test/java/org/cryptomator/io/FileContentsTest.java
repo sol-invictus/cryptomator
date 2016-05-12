@@ -1,5 +1,13 @@
 package org.cryptomator.io;
 
+import static java.lang.Math.min;
+import static java.util.Arrays.copyOf;
+import static org.junit.Assert.assertArrayEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -8,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import org.cryptomator.filesystem.File;
+import org.cryptomator.filesystem.ReadResult;
 import org.cryptomator.filesystem.ReadableFile;
 import org.cryptomator.filesystem.WritableFile;
 import org.junit.Assert;
@@ -35,14 +44,18 @@ public class FileContentsTest {
 		ByteBuffer testContent = ByteBuffer.wrap(testString.getBytes(charset));
 		File file = Mockito.mock(File.class);
 		ReadableFile readable = Mockito.mock(ReadableFile.class);
-		Mockito.when(file.openReadable()).thenReturn(readable);
-		Mockito.when(readable.read(Mockito.any(ByteBuffer.class))).then(invocation -> {
-			ByteBuffer target = invocation.getArgumentAt(0, ByteBuffer.class);
-			if (testContent.hasRemaining()) {
-				return ByteBuffers.copy(testContent, target);
-			} else {
-				return -1;
+		when(file.openReadable()).thenReturn(readable);
+		when(readable.read(anyLong(), any(ByteBuffer.class))).then(invocation -> {
+			Long position = invocation.getArgumentAt(0, Long.class);
+			ByteBuffer target = invocation.getArgumentAt(1, ByteBuffer.class);
+			if (position >= testContent.capacity()) {
+				return ReadResult.EOF;
 			}
+			testContent.position(position.intValue());
+			testContent.limit(testContent.capacity());
+			testContent.limit(min(target.remaining(), testContent.remaining()));
+			target.put(testContent);
+			return target.hasRemaining() ? ReadResult.NO_EOF : ReadResult.EOF_REACHED;
 		});
 
 		String contentsRead = FileContents.withCharset(charset).readContents(file);
@@ -61,25 +74,23 @@ public class FileContentsTest {
 			testContent.clear();
 			return null;
 		}).when(writable).truncate();
-		Mockito.when(writable.write(Mockito.any(ByteBuffer.class))).then(invocation -> {
-			ByteBuffer source = invocation.getArgumentAt(0, ByteBuffer.class);
-			if (testContent.hasRemaining()) {
-				return ByteBuffers.copy(source, testContent);
-			} else {
-				return -1;
-			}
-		});
+		doAnswer(invocation -> {
+			Long position = invocation.getArgumentAt(0, Long.class);
+			ByteBuffer source = invocation.getArgumentAt(1, ByteBuffer.class);
+			testContent.position(position.intValue());
+			testContent.put(source);
+			return null;
+		}).when(writable).write(anyLong(), any(ByteBuffer.class));
 
 		FileContents.withCharset(charset).writeContents(file, testString);
-		Assert.assertArrayEquals(testString.getBytes(charset), Arrays.copyOf(testContent.array(), testContent.position()));
+
+		assertArrayEquals(testString.getBytes(charset), copyOf(testContent.array(), testContent.position()));
 	}
 
 	@Test(expected = UncheckedIOException.class)
 	public void testIOExceptionDuringRead() {
 		File file = Mockito.mock(File.class);
-		Mockito.when(file.openReadable()).thenAnswer(invocation -> {
-			throw new IOException("failed");
-		});
+		when(file.openReadable()).thenThrow(new UncheckedIOException(new IOException("failed")));
 
 		FileContents.UTF_8.readContents(file);
 	}

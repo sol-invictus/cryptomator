@@ -11,11 +11,12 @@ package org.cryptomator.filesystem.delegating;
 import java.io.UncheckedIOException;
 import java.util.Optional;
 
+import org.cryptomator.filesystem.CreateMode;
 import org.cryptomator.filesystem.File;
 import org.cryptomator.filesystem.ReadableFile;
 import org.cryptomator.filesystem.WritableFile;
 
-public abstract class DelegatingFile<D extends DelegatingFolder<D, ?>> extends DelegatingNode<File>implements File {
+public abstract class DelegatingFile<D extends DelegatingFolder<D, ?>> extends DelegatingNode<File> implements File {
 
 	private final D parent;
 
@@ -35,8 +36,8 @@ public abstract class DelegatingFile<D extends DelegatingFolder<D, ?>> extends D
 	}
 
 	@Override
-	public WritableFile openWritable() throws UncheckedIOException {
-		return delegate.openWritable();
+	public WritableFile openWritable(CreateMode mode) throws UncheckedIOException {
+		return delegate.openWritable(mode);
 	}
 
 	@Override

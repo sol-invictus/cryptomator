@@ -8,10 +8,9 @@
  *******************************************************************************/
 package org.cryptomator.filesystem;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
+import static org.cryptomator.filesystem.CreateMode.CREATE_IF_MISSING;
 
-import com.google.common.io.ByteStreams;
+import org.cryptomator.io.FileUtils;
 
 class Copier {
 
@@ -33,13 +32,10 @@ class Copier {
 	}
 
 	public static void copy(File source, File destination) {
-		try (OpenFiles openFiles = DeadlockSafeFileOpener.withReadable(source).andWritable(destination).open()) {
-			ReadableFile readable = openFiles.readable(source);
-			WritableFile writable = openFiles.writable(destination);
+		try (ReadableFile readable = source.openReadable(); //
+				WritableFile writable = destination.openWritable(CREATE_IF_MISSING)) {
 			writable.truncate();
-			ByteStreams.copy(readable, writable);
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
+			FileUtils.copy(readable, writable);
 		}
 	}
 

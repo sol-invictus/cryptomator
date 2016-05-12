@@ -5,69 +5,59 @@
  ******************************************************************************/
 package org.cryptomator.filesystem;
 
+import static org.cryptomator.filesystem.CreateMode.CREATE_IF_MISSING;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
 /**
  * A {@link File} in a {@link FileSystem}.
- * 
+ *
  * @author Markus Kreusch
  */
 public interface File extends Node, Comparable<File> {
 
-	static final int EOF = -1;
-
 	/**
 	 * <p>
-	 * Opens this file for reading.
+	 * Creates a new readable view of this {@code File}.
 	 * <p>
-	 * An implementation guarantees, that per {@link FileSystem} and
-	 * {@code File} while a {@code ReadableFile} is open no {@link WritableFile}
-	 * can be open and vice versa. A {@link ReadableFile} is open when returned
-	 * from this method and not yet closed using {@link ReadableFile#close()}.
-	 * <br>
-	 * A limitation to the number of {@code ReadableFiles} is in general not
-	 * required but may be set by a specific implementation.
+	 * Multiple {@link ReadableFile Readable-} and {@link WritableFiles} can exist and be used for a single file at the same time.
+	 * The file remains opened until all of these have been closed.
 	 * <p>
-	 * If a {@link WritableFile} for this {@code File} is open the invocation of
-	 * this method will block regarding the specified timeout.<br>
-	 * In addition implementations may block to lock the required IO resources
-	 * to read the file.
-	 * 
+	 * Instances returned by this method are safe to be used by multiple threads.
+	 *
 	 * @return a {@link ReadableFile} to work with
 	 * @throws UncheckedIOException
 	 *             if an {@link IOException} occurs while opening the file, the
 	 *             file does not exist or is a directory
 	 */
-
 	ReadableFile openReadable() throws UncheckedIOException;
 
 	/**
 	 * <p>
-	 * Opens this file for writing.
+	 * Creates a new writable view of this {@code File}.
 	 * <p>
-	 * If the file does not exist a new empty file is created.
+	 * Multiple {@link ReadableFile Readable-} and {@link WritableFiles} can exist and be used for a single file at the same time.
+	 * The file remains opened until all of these have been closed.
 	 * <p>
-	 * An implementation guarantees, that per {@link FileSystem} and
-	 * {@code File} only one {@link WritableFile} is open at a time. A
-	 * {@code WritableFile} is open when returned from this method and not yet
-	 * closed using {@link WritableFile#close()} or
-	 * {@link WritableFile#delete()}.<br>
-	 * In addition while a {@code WritableFile} is open no {@link ReadableFile}
-	 * can be open and vice versa.
-	 * <p>
-	 * If a {@code Readable-} or {@code WritableFile} for this {@code File} is
-	 * open the invocation of this method will block regarding the specified
-	 * timeout.<br>
-	 * In addition implementations may block to lock the required IO resources
-	 * to read the file.
-	 * 
+	 * Instances returned by this method are safe to be used by multiple threads.
+	 *
 	 * @return a {@link WritableFile} to work with
 	 * @throws UncheckedIOException
 	 *             if an {@link IOException} occurs while opening the file or
 	 *             the file is a directory
 	 */
-	WritableFile openWritable() throws UncheckedIOException;
+	WritableFile openWritable(CreateMode mode) throws UncheckedIOException;
+
+	/**
+	 * Shortcut for {@code openWritable(CREATE_IF_MISSING)}.
+	 *
+	 * @see #openWritable(CreateMode)
+	 * @see CreateMode#CREATE_IF_MISSING
+	 */
+	default WritableFile openWritable() throws UncheckedIOException {
+		return openWritable(CREATE_IF_MISSING);
+	}
 
 	default void copyTo(File destination) {
 		Copier.copy(this, destination);

@@ -1,6 +1,5 @@
 package org.cryptomator.frontend.fuse;
 
-import static java.lang.Math.min;
 import static java.time.Instant.EPOCH;
 
 import java.nio.ByteBuffer;
@@ -14,6 +13,8 @@ import org.cryptomator.filesystem.Folder;
 import org.cryptomator.filesystem.Node;
 import org.cryptomator.filesystem.ReadableFile;
 import org.cryptomator.filesystem.WritableFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.fusejna.DirectoryFiller;
 import net.fusejna.ErrorCodes;
@@ -28,67 +29,72 @@ import net.fusejna.XattrFiller;
 import net.fusejna.XattrListFiller;
 import net.fusejna.types.TypeMode.ModeWrapper;
 import net.fusejna.types.TypeMode.NodeType;
-import net.fusejna.util.FuseFilesystemAdapterFull;
 
 /**
  * TODO:
  * <ul>
- * 	<li>Wrap in another {@link FuseFilesystem} which returns EIO on all and logs Exceptions
+ * <li>Wrap in another {@link FuseFilesystem} which returns EIO on all and logs
+ * Exceptions
  * </ul>
  */
-public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
+public class FuseFilesystemAdapter extends FuseFilesystem {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FuseFilesystemAdapter.class);
 
 	private static final int SUCCESS = 0;
-	
+
 	private final FileSystem delegate;
-	
+	private final OpenFiles openFiles;
+
 	public FuseFilesystemAdapter(FileSystem delegate) {
 		this.delegate = delegate;
-	} 
-	
+		this.openFiles = new OpenFiles(delegate);
+	}
+
 	@Override
 	public int getattr(final String path, final StatWrapper stat) {
-		return resolve(path,
-				file -> getattr(file, stat),
-				folder -> getattr(folder, stat),
-				() -> -ErrorCodes.ENOENT());
+		return resolve(path, file -> getattr(file, stat), folder -> getattr(folder, stat), () -> -ErrorCodes.ENOENT());
 	}
-	
+
 	private int getattr(File file, StatWrapper stat) {
 		try (ReadableFile readableFile = file.openReadable()) {
 			stat.setMode(NodeType.FILE) //
-				.size(readableFile.size())
-				.mtime(file.lastModified().getEpochSecond())
-				.ctime(file.creationTime().orElse(EPOCH).getEpochSecond());
+					.size(readableFile.size()).mtime(file.lastModified().getEpochSecond())
+					.ctime(file.creationTime().orElse(EPOCH).getEpochSecond());
 			if (isMounted()) {
-				stat
-					.uid(getFuseContextUid().longValue())
-					.gid(getFuseContextGid().longValue());
+				stat.uid(getFuseContextUid().longValue()).gid(getFuseContextGid().longValue());
 			}
 		}
 		return SUCCESS;
 	}
-	
+
 	private int getattr(Folder folder, StatWrapper stat) {
-		stat.setMode(NodeType.DIRECTORY)
-			.mtime(folder.lastModified().getEpochSecond())
-			.ctime(folder.creationTime().orElse(EPOCH).getEpochSecond());
+		stat.setMode(NodeType.DIRECTORY).mtime(folder.lastModified().getEpochSecond())
+				.ctime(folder.creationTime().orElse(EPOCH).getEpochSecond());
 		if (isMounted()) {
-			stat
-				.uid(getFuseContextUid().longValue())
-				.gid(getFuseContextGid().longValue());
+			stat.uid(getFuseContextUid().longValue()).gid(getFuseContextGid().longValue());
 		}
 		return SUCCESS;
 	}
-	
+
+	@Override
+	public int truncate(String path, long offset) {
+		File file = delegate.resolveFile(path);
+		if (file.exists()) {
+			try (WritableFile writable = file.openWritable()) {
+				writable.truncate();
+			}
+			return 0;
+		}
+		return -ErrorCodes.ENOENT();
+	}
+
 	@Override
 	public int create(String path, ModeWrapper mode, FileInfoWrapper info) {
-		return resolve(path,
-				file -> -ErrorCodes.EEXIST(),
-				folder -> -ErrorCodes.EEXIST(),
+		return resolve(path, file -> -ErrorCodes.EEXIST(), folder -> -ErrorCodes.EEXIST(),
 				() -> createNonExisting(path, mode, info));
 	}
-	
+
 	private int createNonExisting(String path, ModeWrapper mode, FileInfoWrapper info) {
 		NodeType type = NodeType.fromBits(mode.mode());
 		if (type != null && type != NodeType.FILE) {
@@ -105,48 +111,47 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 	}
 
 	@Override
+	public int open(String path, FileInfoWrapper info) {
+		try {
+			OpenFile openFile = openFiles.open(path, info.openMode());
+			info.fh(openFile.handle());
+			return SUCCESS;
+		} catch (OpenException e) {
+			return e.reason().toErrorCode();
+		}
+	}
+
+	@Override
 	public int write(String path, ByteBuffer buf, long bufSize, long writeOffset, FileInfoWrapper wrapper) {
-		File file = delegate.resolveFile(path); 
-		if (file.exists()) {
-			try (WritableFile writable = file.openWritable()) {
-				writable.position(writeOffset);
-				buf.limit((int)Math.min(buf.limit(), buf.position() + bufSize));
-				return writable.write(buf);
-			}
+		OpenFile openFile = openFiles.get(wrapper.fh());
+		if (openFile == null) {
+			return -ErrorCodes.EINVAL();
 		}
-		return -ErrorCodes.ENOENT();
+		openFile.write(writeOffset, buf);
+		return SUCCESS;
 	}
 
 	@Override
-	public int truncate(String path, long offset) {
-		File file = delegate.resolveFile(path); 
-		if (file.exists()) {
-			try (WritableFile writable = file.openWritable()) {
-				writable.truncate();
-			}
-			return 0;
+	public int read(final String path, final ByteBuffer buffer, final long size, final long offset,
+			final FileInfoWrapper info) {
+		OpenFile openFile = openFiles.get(info.fh());
+		if (openFile == null) {
+			return -ErrorCodes.EINVAL();
 		}
-		return -ErrorCodes.ENOENT();
+		openFile.read(offset, buffer);
+		return SUCCESS;
 	}
 
 	@Override
-	public int read(final String path, final ByteBuffer buffer, final long size, final long offset, final FileInfoWrapper info) {
-		File file = delegate.resolveFile(path); 
-		if (file.exists()) {
-			try (ReadableFile readable = file.openReadable()) {
-				readable.position(offset);
-				buffer.limit((int)min(buffer.limit(), buffer.position() + size));
-				int read = readable.read(buffer);
-				if (read == -1) {
-					return 0;
-				} else {
-					return read;
-				}
-			}
+	public int release(String path, FileInfoWrapper info) {
+		OpenFile openFile = openFiles.get(info.fh());
+		if (openFile == null) {
+			return -ErrorCodes.EINVAL();
 		}
-		return -ErrorCodes.ENOENT();
+		openFile.close();
+		return SUCCESS;
 	}
-	
+
 	@Override
 	public int rename(String path, String newName) {
 		Folder targetFolder = delegate.resolveFolder(newName);
@@ -173,7 +178,7 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 		}
 		return -ErrorCodes.ENOENT();
 	}
-	
+
 	@Override
 	public int mkdir(String path, ModeWrapper mode) {
 		if (delegate.resolveFile(path).exists()) {
@@ -189,7 +194,7 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 		folder.create();
 		return 0;
 	}
-	
+
 	@Override
 	public int unlink(String path) {
 		File file = delegate.resolveFile(path);
@@ -206,8 +211,7 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 	}
 
 	@Override
-	public int readdir(final String path, final DirectoryFiller filler)
-	{
+	public int readdir(final String path, final DirectoryFiller filler) {
 		Folder folder = delegate.resolveFolder(path);
 		if (folder.exists()) {
 			folder.children().map(Node::name).forEach(filler::add);
@@ -233,15 +237,12 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 
 	@Override
 	public int chown(String path, long uid, long gid) {
-		return -ErrorCodes.ENODEV(); 
+		return -ErrorCodes.ENODEV();
 	}
 
 	@Override
 	public int fgetattr(String path, StatWrapper stat, FileInfoWrapper info) {
-		return resolve(path,
-				file -> getattr(file, stat),
-				folder -> getattr(folder, stat),
-				() -> -ErrorCodes.ENOENT());
+		return resolve(path, file -> getattr(file, stat), folder -> getattr(folder, stat), () -> -ErrorCodes.ENOENT());
 	}
 
 	@Override
@@ -271,7 +272,7 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 
 	@Override
 	public int listxattr(String path, XattrListFiller filler) {
-		return -ErrorCodes.ENODEV(); 
+		return -ErrorCodes.ENODEV();
 	}
 
 	@Override
@@ -285,29 +286,13 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 	}
 
 	@Override
-	public int open(String path, FileInfoWrapper info) {
-		return resolve(path,
-				file -> 0,
-				folder -> -ErrorCodes.ENOENT(),
-				() -> -ErrorCodes.ENOENT());
-	}
-
-	@Override
 	public int opendir(String path, FileInfoWrapper info) {
-		return resolve(path,
-				file -> -ErrorCodes.ENOENT(),
-				folder -> 0,
-				() -> -ErrorCodes.ENOENT());
+		return resolve(path, file -> -ErrorCodes.ENOENT(), folder -> 0, () -> -ErrorCodes.ENOENT());
 	}
 
 	@Override
 	public int readlink(String path, ByteBuffer buffer, long size) {
 		return -ErrorCodes.ENODEV();
-	}
-
-	@Override
-	public int release(String path, FileInfoWrapper info) {
-		return 0;
 	}
 
 	@Override
@@ -346,34 +331,33 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 	@Override
 	public int utimens(String path, TimeBufferWrapper wrapper) {
 		// TODO atime
-		return resolve(path,
-				file -> {
-					file.setLastModified(Instant.ofEpochSecond(wrapper.mod_sec(), wrapper.mod_nsec()));
-					return 0;
-				},
-				folder -> {
-					folder.setLastModified(Instant.ofEpochSecond(wrapper.mod_sec(), wrapper.mod_nsec()));
-					return 0;
-				},
-				() -> -ErrorCodes.ENOENT());
+		return resolve(path, file -> {
+			file.setLastModified(Instant.ofEpochSecond(wrapper.mod_sec(), wrapper.mod_nsec()));
+			return 0;
+		}, folder -> {
+			folder.setLastModified(Instant.ofEpochSecond(wrapper.mod_sec(), wrapper.mod_nsec()));
+			return 0;
+		}, () -> -ErrorCodes.ENOENT());
 	}
 
 	@Override
 	public int statfs(String path, StatvfsWrapper wrapper) {
 		// TODO blocksize/count wtf?
-		/** Get file system statistics
+		/**
+		 * Get file system statistics
 		 *
 		 * The 'f_frsize', 'f_favail', 'f_fsid' and 'f_flag' fields are ignored
 		 *
-		 * Replaced 'struct statfs' parameter with 'struct statvfs' in
-		 * version 2.5
+		 * Replaced 'struct statfs' parameter with 'struct statvfs' in version
+		 * 2.5
 		 */
-		wrapper.setBlockInfo(500000, 500000, 1000000);
-		wrapper.setSizes(4096, 4096);
-		return super.statfs(path, wrapper);
+		wrapper.setBlockInfo(30000, 30000, 30000);
+		wrapper.setSizes(32768, 32768);
+		return 0;
 	}
-	
-	private int resolve(final String path, ToIntFunction<File> onFile, ToIntFunction<Folder> onFolder, IntSupplier onNothing) {
+
+	private int resolve(final String path, ToIntFunction<File> onFile, ToIntFunction<Folder> onFolder,
+			IntSupplier onNothing) {
 		if (!path.endsWith("/")) {
 			File file = delegate.resolveFile(path);
 			if (file.exists()) {
@@ -385,6 +369,47 @@ public class FuseFilesystemAdapter extends FuseFilesystemAdapterFull {
 			return onFolder.applyAsInt(folder);
 		}
 		return onNothing.getAsInt();
+	}
+
+	@Override
+	public int ftruncate(String path, long offset, FileInfoWrapper info) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	protected String getName() {
+		return "cryptomator";
+	}
+
+	@Override
+	protected String[] getOptions() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void init() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void afterUnmount(java.io.File mountPoint) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void beforeMount(java.io.File mountPoint) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void destroy() {
+		// TODO Auto-generated method stub
+
 	}
 
 }

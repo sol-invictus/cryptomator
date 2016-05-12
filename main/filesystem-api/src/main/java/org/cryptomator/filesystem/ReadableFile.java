@@ -8,49 +8,58 @@ package org.cryptomator.filesystem;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
 
-public interface ReadableFile extends ReadableByteChannel {
+/**
+ * <p>
+ * A {@code ReadableFile} allows to read a {@link File}.
+ * <p>
+ * Instances can safely be used by multiple threads.
+ */
+public interface ReadableFile extends AutoCloseable {
 
 	/**
-	 * <p>
-	 * Tries to fill the remaining space in the given byte buffer with data from
-	 * this readable bytes from the current position.
-	 * <p>
-	 * May read less bytes if the end of this readable bytes has been reached.
-	 * 
-	 * @param target
-	 *            the byte buffer to fill
-	 * @return the number of bytes actually read, or {@code -1} if the end of
-	 *         file has been reached
-	 * @throws UncheckedIOException
-	 *             if an {@link IOException} occurs while reading from this
-	 *             {@code ReadableBytes}
+	 * @return {@code true} if this ReadableFile is still open. Otherwise
+	 *         {@code false}.
 	 */
-	@Override
-	int read(ByteBuffer target) throws UncheckedIOException;
+	boolean isOpen();
 
 	/**
-	 * @return The current size of the file. This value is a snapshot and might have been changed by concurrent modifications.
+	 * Reads data from this {@code ReadableFile} into the given {@link ByteBuffer} starting at
+	 * the given position.
+	 * <p>
+	 * This methods tries to fill the given buffer completely. Thus the buffer will always have {@link ByteBuffer#remaining()}
+	 * of zero if the end of file has not or exactly been reached while reading.
+	 *
+	 * @param position
+	 *            the position to start reading
+	 * @param source
+	 *            the byte buffer to fill
 	 * @throws UncheckedIOException
-	 *             if an {@link IOException} occurs
+	 *             if an {@link IOException} occurs while writing or if this {@code ReadableFile} is already closed
+	 * @return a {@link ReadResult} telling if EOF has been reached immediately, while filling the buffer or has not been reached.
+	 */
+	ReadResult read(long position, ByteBuffer target) throws UncheckedIOException;
+
+	/**
+	 * @return The current size of the file.
+	 * @throws UncheckedIOException
+	 *             if an {@link IOException} occurs or if this {@code ReadableFile} is already closed
 	 */
 	long size() throws UncheckedIOException;
 
 	/**
 	 * <p>
-	 * Fast-forwards or rewinds the file to the specified position.
+	 * Closes this {@code ReadableFile}.
 	 * <p>
-	 * Consecutive reads on the file will begin at the new position.
-	 * 
-	 * @param position
-	 *            the position to set the file to
+	 * After a {@code ReadableFile} has been closed all other operations except {@link #isOpen()} will
+	 * throw an {@link UncheckedIOException}.
+	 * <p>
+	 * Invoking this method on a {@link ReadableFile} which has already been
+	 * closed does nothing.
+	 *
 	 * @throws UncheckedIOException
-	 *             if an {@link IOException} occurs
-	 * 
+	 *             if an {@link IOException} occurs while closing
 	 */
-	void position(long position) throws UncheckedIOException;
-
 	@Override
 	void close() throws UncheckedIOException;
 
