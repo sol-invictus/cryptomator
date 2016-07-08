@@ -1,12 +1,9 @@
 package org.cryptomator.filesystem.nio;
 
 import static java.lang.String.format;
-import static org.cryptomator.filesystem.nio.OpenMode.READ;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
@@ -15,13 +12,12 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
+import org.cryptomator.filesystem.ReadResult;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.mockito.InOrder;
-import org.mockito.Mockito;
 
 import de.bechte.junit.runners.context.HierarchicalContextRunner;
 
@@ -35,22 +31,18 @@ public class ReadableNioFileTest {
 
 	private SharedFileChannel channel;
 
-	private Runnable afterCloseCallback;
-
 	private ReadableNioFile inTest;
 
 	@Before
 	public void setup() {
 		path = mock(Path.class);
 		channel = mock(SharedFileChannel.class);
-		afterCloseCallback = mock(Runnable.class);
-
-		inTest = new ReadableNioFile(path, channel, afterCloseCallback);
+		inTest = new ReadableNioFile(path, channel);
 	}
 
 	@Test
-	public void testConstructorInvokesOpenWithReadModeOnChannelOfNioFile() {
-		verify(channel).open(READ);
+	public void testConstructorInvokesOpenForReading() {
+		verify(channel).openForReading();
 	}
 
 	@Test
@@ -61,26 +53,7 @@ public class ReadableNioFileTest {
 		thrown.expect(UncheckedIOException.class);
 		thrown.expectMessage("already closed");
 
-		inTest.read(irrelevant);
-	}
-
-	@Test
-	public void testPositionFailsIfClosed() {
-		int irrelevant = 1;
-		inTest.close();
-
-		thrown.expect(UncheckedIOException.class);
-		thrown.expectMessage("already closed");
-
-		inTest.position(irrelevant);
-	}
-
-	@Test
-	public void testPositionFailsIfNegative() {
-
-		thrown.expect(IllegalArgumentException.class);
-
-		inTest.position(-1);
+		inTest.read(0, irrelevant);
 	}
 
 	@Test
@@ -94,65 +67,51 @@ public class ReadableNioFileTest {
 	}
 
 	@Test
-	public void testReadDelegatesToChannelReadFullyWithZeroPositionIfNotSet() {
+	public void testReadDelegatesToChannelReadFullyWithPassedPosition() {
+		long position = 578372;
 		ByteBuffer buffer = mock(ByteBuffer.class);
 
-		inTest.read(buffer);
-
-		verify(channel).readFully(0, buffer);
-	}
-
-	@Test
-	public void testReadDelegatesToChannelReadFullyWithPositionAtEndOfPreviousReadIfInvokedTwice() {
-		ByteBuffer buffer = mock(ByteBuffer.class);
-		int endOfPreviousRead = 10;
-		when(channel.readFully(0, buffer)).thenReturn(endOfPreviousRead);
-
-		inTest.read(buffer);
-		inTest.read(buffer);
-
-		verify(channel).readFully(0, buffer);
-		verify(channel).readFully(10, buffer);
-	}
-
-	@Test
-	public void testReadDelegatesToChannelReadFullyWithPositionUnchangedIfPreviousReadReturnedEof() {
-		ByteBuffer buffer = mock(ByteBuffer.class);
-		when(channel.readFully(0, buffer)).thenReturn(SharedFileChannel.EOF);
-
-		inTest.read(buffer);
-		inTest.read(buffer);
-
-		verify(channel, times(2)).readFully(0, buffer);
-	}
-
-	@Test
-	public void testReadDelegatesToChannelReadFullyWithSetPosition() {
-		ByteBuffer buffer = mock(ByteBuffer.class);
-		int position = 10;
-		inTest.position(position);
-
-		inTest.read(buffer);
+		inTest.read(position, buffer);
 
 		verify(channel).readFully(position, buffer);
 	}
 
 	@Test
-	public void testReadReturnsValueOfChannelReadFully() {
+	public void testReadReturnsEofIfReadFullyDid() {
 		ByteBuffer buffer = mock(ByteBuffer.class);
-		int expectedResult = 37028;
-		when(channel.readFully(0, buffer)).thenReturn(expectedResult);
+		long position = 578372;
+		when(channel.readFully(position, buffer)).thenReturn(SharedFileChannel.EOF);
 
-		int result = inTest.read(buffer);
+		ReadResult result = inTest.read(position, buffer);
 
-		assertThat(result, is(expectedResult));
+		assertThat(result, is(ReadResult.EOF));
+	}
+
+	@Test
+	public void testReadReturnsEofReachedIfBufferHasRemaining() {
+		ByteBuffer buffer = ByteBuffer.allocate(1);
+		long position = 578372;
+
+		ReadResult result = inTest.read(position, buffer);
+
+		assertThat(result, is(ReadResult.EOF_REACHED));
+	}
+
+	@Test
+	public void testReadReturnsNoEofIfBufferWasFilled() {
+		ByteBuffer buffer = ByteBuffer.allocate(0);
+		long position = 578372;
+
+		ReadResult result = inTest.read(position, buffer);
+
+		assertThat(result, is(ReadResult.NO_EOF));
 	}
 
 	@Test
 	public void testReadDoesNotModifyBuffer() {
 		ByteBuffer buffer = mock(ByteBuffer.class);
 
-		inTest.read(buffer);
+		inTest.read(12371, buffer);
 
 		verifyZeroInteractions(buffer);
 	}
@@ -170,36 +129,18 @@ public class ReadableNioFileTest {
 	}
 
 	@Test
-	public void testCloseClosesChannelAndUnlocksReadLock() {
+	public void testCloseClosesChannel() {
 		inTest.close();
 
-		InOrder inOrder = Mockito.inOrder(channel, afterCloseCallback);
-		inOrder.verify(channel).close();
-		inOrder.verify(afterCloseCallback).run();
+		verify(channel).close();
 	}
 
 	@Test
-	public void testCloseClosesChannelAndUnlocksReadLockOnlyOnceIfInvokedTwice() {
+	public void testCloseClosesChannelOnlyOnceIfInvokedTwice() {
 		inTest.close();
 		inTest.close();
 
-		InOrder inOrder = Mockito.inOrder(channel, afterCloseCallback);
-		inOrder.verify(channel).close();
-		inOrder.verify(afterCloseCallback).run();
-	}
-
-	@Test
-	public void testCloseUnlocksReadLockEvenIfCloseFails() {
-		String message = "exceptionMessage";
-		doThrow(new RuntimeException(message)).when(channel).close();
-
-		thrown.expectMessage(message);
-
-		try {
-			inTest.close();
-		} finally {
-			verify(afterCloseCallback).run();
-		}
+		verify(channel).close();
 	}
 
 	@Test

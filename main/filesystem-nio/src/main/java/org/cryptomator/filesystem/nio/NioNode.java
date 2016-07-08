@@ -62,8 +62,35 @@ abstract class NioNode implements Node {
 
 	@Override
 	public Optional<Instant> creationTime() throws UncheckedIOException {
+		return fileTimeToOptionalInstantOrEmptyIfInvalid(nioAccess::getCreationTime);
+	}
+
+	@Override
+	public void setCreationTime(Instant creationTime) throws UncheckedIOException {
 		try {
-			Instant instant = nioAccess.getCreationTime(path).toInstant();
+			nioAccess.setCreationTime(path, FileTime.from(creationTime));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Override
+	public Optional<Instant> accessTime() throws UncheckedIOException {
+		return fileTimeToOptionalInstantOrEmptyIfInvalid(nioAccess::getAccessTime);
+	}
+
+	@Override
+	public void setAccessTime(Instant accessTime) throws UncheckedIOException {
+		try {
+			nioAccess.setCreationTime(path, FileTime.from(accessTime));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private Optional<Instant> fileTimeToOptionalInstantOrEmptyIfInvalid(FunctionThrowingException<Path, FileTime, IOException> getter) {
+		try {
+			Instant instant = getter.apply(path).toInstant();
 			if (instant.isBefore(JANNUARY_THE_SECOND_NINTEENHUNDRED_SEVENTY)) {
 				return Optional.empty();
 			} else {
@@ -74,13 +101,10 @@ abstract class NioNode implements Node {
 		}
 	}
 
-	@Override
-	public void setCreationTime(Instant creationTime) throws UncheckedIOException {
-		try {
-			nioAccess.setCreationTime(path, FileTime.from(creationTime));
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
+	private static interface FunctionThrowingException<ParameterType, ResultType, ExceptionType extends Exception> {
+
+		ResultType apply(ParameterType param) throws ExceptionType;
+
 	}
 
 }

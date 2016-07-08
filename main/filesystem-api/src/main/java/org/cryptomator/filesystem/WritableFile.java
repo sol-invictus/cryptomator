@@ -54,12 +54,23 @@ public interface WritableFile extends AutoCloseable {
 	void write(long position, ByteBuffer source) throws UncheckedIOException;
 
 	/**
-	 * Truncates the file to a length of 0.
+	 * Alias for {@code truncate(0)}.
+	 *
+	 * @see #truncate(long)
+	 */
+	default void truncate() throws UncheckedIOException {
+		truncate(0);
+	}
+
+	/**
+	 * Truncates the file to the given size.
+	 *
+	 * @param newSize the new size
 	 *
 	 * @throws UncheckedIOException
 	 *             if an {@link IOException} occurs while truncating or if this {@code WritableFile} is already closed
 	 */
-	void truncate() throws UncheckedIOException;
+	void truncate(long newSize) throws UncheckedIOException;
 
 	/**
 	 * <p>
@@ -90,5 +101,12 @@ public interface WritableFile extends AutoCloseable {
 	 */
 	@Override
 	void close() throws UncheckedIOException;
+
+	/**
+	 * @return The current size of the file.
+	 * @throws UncheckedIOException
+	 *             if an {@link IOException} occurs or if this {@code WritableFile} is already closed
+	 */
+	long size() throws UncheckedIOException;
 
 }

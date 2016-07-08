@@ -68,4 +68,9 @@ public interface File extends Node, Comparable<File> {
 	 */
 	void moveTo(File destination) throws UncheckedIOException;
 
+	/**
+	 * @return the size of this file
+	 */
+	long size();
+
 }

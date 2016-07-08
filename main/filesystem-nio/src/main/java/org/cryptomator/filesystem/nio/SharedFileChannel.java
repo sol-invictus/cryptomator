@@ -1,6 +1,7 @@
 package org.cryptomator.filesystem.nio;
 
 import static java.lang.String.format;
+import static org.cryptomator.filesystem.nio.CreateModeToOpenOptionsMapping.openOptionsFor;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -13,6 +14,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import org.cryptomator.filesystem.CreateMode;
 
 class SharedFileChannel {
 
@@ -32,13 +35,21 @@ class SharedFileChannel {
 		this.openCloseCounter = new OpenCloseCounter();
 	}
 
-	public void open(OpenMode mode) {
+	public void openForReading() {
+		open(this::createChannelForReading);
+	}
+
+	public void openForWriting(CreateMode mode) {
+		open(() -> createChannelForWriting(mode));
+	}
+
+	private void open(Runnable createChannelOperation) {
 		doLocked(() -> {
 			boolean failed = true;
 			try {
 				openCloseCounter.countOpen();
 				if (delegate == null) {
-					createChannel(mode);
+					createChannelOperation.run();
 				}
 				failed = false;
 			} finally {
@@ -47,6 +58,15 @@ class SharedFileChannel {
 				}
 			}
 		});
+	}
+
+	public void flush() {
+		assertOpen();
+		try {
+			delegate.force(true);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	public void close() {
@@ -64,17 +84,31 @@ class SharedFileChannel {
 		});
 	}
 
-	private void createChannel(OpenMode mode) {
+	private void createChannelForWriting(CreateMode mode) {
 		try {
 			if (nioAccess.isDirectory(path)) {
 				throw new IOException(format("%s is a directory", path));
 			}
-			if (mode == OpenMode.READ) {
+			if (mode == CreateMode.FAIL_IF_MISSING) {
 				if (!nioAccess.isRegularFile(path)) {
 					throw new NoSuchFileException(format("%s does not exist", path));
 				}
 			}
-			delegate = nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+			delegate = nioAccess.open(path, openOptionsFor(mode));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private void createChannelForReading() {
+		try {
+			if (nioAccess.isDirectory(path)) {
+				throw new IOException(format("%s is a directory", path));
+			}
+			if (!nioAccess.isRegularFile(path)) {
+				throw new NoSuchFileException(format("%s does not exist", path));
+			}
+			delegate = nioAccess.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -116,10 +150,10 @@ class SharedFileChannel {
 		return initialRemaining - target.remaining();
 	}
 
-	public void truncate(int i) {
+	public void truncate(long newSize) {
 		assertOpen();
 		try {
-			delegate.truncate(i);
+			delegate.truncate(newSize);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}

@@ -1,6 +1,7 @@
 package org.cryptomator.filesystem.nio;
 
 import static java.lang.String.format;
+import static org.cryptomator.filesystem.CreateMode.CREATE_AND_FAIL_IF_PRESENT;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
@@ -58,35 +59,34 @@ public class DefaultInstanceFactoryTest {
 
 	@Test
 	public void testSharedFileChannelCreatesSharedFileChannel() throws IOException {
+		when(nioAccess.isRegularFile(path)).thenReturn(true);
 		SharedFileChannel result = inTest.sharedFileChannel(path, nioAccess);
 
-		result.open(OpenMode.WRITE);
-		verify(nioAccess).open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+		result.openForReading();
+		verify(nioAccess).open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
 	}
 
 	@Test
 	public void testWritableNioFileCreatesWritableNioFile() throws IOException {
-		Runnable afterCloseCallback = mock(Runnable.class);
-		WritableNioFile result = inTest.writableNioFile(fileSystem, path, channel, afterCloseCallback);
+		WritableNioFile result = inTest.writableNioFile(fileSystem, path, channel, CREATE_AND_FAIL_IF_PRESENT);
 
 		assertThat(result.path(), is(path));
 		assertThat(result.channel(), is(channel));
 		assertThat(result.fileSystem(), is(fileSystem));
 
+		verify(channel).openForWriting(CREATE_AND_FAIL_IF_PRESENT);
 		result.close();
-		verify(afterCloseCallback).run();
+		verify(channel).close();
 	}
 
 	@Test
 	public void testReadableNioFileCreatesWritableNioFile() throws IOException {
-		Runnable afterCloseCallback = mock(Runnable.class);
-		ReadableNioFile result = inTest.readableNioFile(path, channel, afterCloseCallback);
+		ReadableNioFile result = inTest.readableNioFile(path, channel);
 
 		assertThat(result.toString(), is(format("ReadableNioFile(%s)", path)));
 
 		result.close();
 		verify(channel).close();
-		verify(afterCloseCallback).run();
 	}
 
 }

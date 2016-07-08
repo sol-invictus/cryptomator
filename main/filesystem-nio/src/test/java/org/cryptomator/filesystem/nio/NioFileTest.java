@@ -23,14 +23,11 @@ import java.util.Optional;
 
 import org.cryptomator.filesystem.File;
 import org.cryptomator.filesystem.FileSystem;
-import org.cryptomator.filesystem.ReadableFile;
-import org.cryptomator.filesystem.WritableFile;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 import de.bechte.junit.runners.context.HierarchicalContextRunner;
@@ -87,111 +84,7 @@ public class NioFileTest {
 
 	public class Open {
 
-		@Test
-		public void testOpenReadableCreatesReadableNioFileFromNioFile() {
-			ReadableNioFile readableNioFile = mock(ReadableNioFile.class);
-			when(instanceFactory.readableNioFile(same(path), same(channel), any())).thenReturn(readableNioFile);
-
-			ReadableFile readableFile = inTest.openReadable();
-
-			assertThat(readableFile, is(readableNioFile));
-		}
-
-		@Test
-		public void testOpenReadableInvokedBeforeInvokingAfterCloseOperationThrowsIllegalStateException() {
-			inTest.openReadable();
-
-			thrown.expect(IllegalStateException.class);
-			thrown.expectMessage("already reading this file");
-
-			inTest.openReadable();
-		}
-
-		@Test
-		public void testOpenReadableInvokedAfterAfterCloseOperationCreatesNewReadableFile() {
-			ReadableNioFile readableNioFile = mock(ReadableNioFile.class);
-			ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-			when(instanceFactory.readableNioFile(same(path), same(channel), captor.capture())).thenReturn(null, readableNioFile);
-			inTest.openReadable();
-			captor.getValue().run();
-
-			ReadableFile readableFile = inTest.openReadable();
-
-			assertThat(readableFile, is(readableNioFile));
-		}
-
-		@Test
-		public void testOpenReadableInvokedBeforeInvokingAfterCloseOperationOfOpenWritableThrowsIllegalStateException() {
-			inTest.openWritable();
-
-			thrown.expect(IllegalStateException.class);
-			thrown.expectMessage("currently writing this file");
-
-			inTest.openReadable();
-		}
-
-		@Test
-		public void testOpenReadableInvokedAfterInvokingAfterCloseOperationWorks() {
-			ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-			when(instanceFactory.writableNioFile(same(fileSystem), same(path), same(channel), captor.capture())).thenReturn(null);
-			inTest.openWritable();
-			captor.getValue().run();
-
-			inTest.openReadable();
-		}
-
-		@Test
-		public void testOpenWritableCreatesWritableNioFileFromNioFileAndNioAccessUsingInstanceFactory() {
-			WritableNioFile writableNioFile = mock(WritableNioFile.class);
-			when(instanceFactory.writableNioFile(same(fileSystem), same(path), same(channel), any())).thenReturn(writableNioFile);
-
-			WritableFile writableFile = inTest.openWritable();
-
-			assertThat(writableFile, is(writableNioFile));
-		}
-
-		@Test
-		public void testOpenWritableInvokedAfterAfterCloseOperationCreatesNewWritableFile() {
-			WritableNioFile writableNioFile = mock(WritableNioFile.class);
-			ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-			when(instanceFactory.writableNioFile(same(fileSystem), same(path), same(channel), captor.capture())).thenReturn(null, writableNioFile);
-			inTest.openWritable();
-			captor.getValue().run();
-
-			WritableFile writableFile = inTest.openWritable();
-
-			assertThat(writableFile, is(writableNioFile));
-		}
-
-		@Test
-		public void testOpenWritableInvokedBeforeInvokingAfterCloseOperationThrowsIllegalStateException() {
-			inTest.openWritable();
-
-			thrown.expect(IllegalStateException.class);
-			thrown.expectMessage("already writing this file");
-
-			inTest.openWritable();
-		}
-
-		@Test
-		public void testOpenWritableInvokedBeforeInvokingAfterCloseOperationFromOpenReadableThrowsIllegalStateException() {
-			inTest.openReadable();
-
-			thrown.expect(IllegalStateException.class);
-			thrown.expectMessage("currently reading this file");
-
-			inTest.openWritable();
-		}
-
-		@Test
-		public void testOpenWritableInvokedAfterInvokingAfterCloseOperationWorks() {
-			ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-			when(instanceFactory.readableNioFile(same(path), same(channel), captor.capture())).thenReturn(null);
-			inTest.openReadable();
-			captor.getValue().run();
-
-			inTest.openWritable();
-		}
+		// TODO
 
 	}
 

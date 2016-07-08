@@ -28,6 +28,8 @@ interface NioAccess {
 
 	void createDirectories(Path dir, FileAttribute<?>... attrs) throws IOException;
 
+	void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException;
+
 	FileTime getLastModifiedTime(Path path, LinkOption... options) throws IOException;
 
 	void delete(Path path) throws IOException;
@@ -40,8 +42,14 @@ interface NioAccess {
 
 	String separator();
 
+	long size(Path path) throws IOException;
+
 	FileTime getCreationTime(Path path, LinkOption... options) throws IOException;
 
 	void setCreationTime(Path path, FileTime creationTime, LinkOption... options) throws IOException;
+
+	FileTime getAccessTime(Path path, LinkOption... options) throws IOException;
+
+	void setAccessTime(Path path, FileTime accessTime, LinkOption... options) throws IOException;
 
 }

@@ -47,6 +47,11 @@ class DefaultNioAccess implements NioAccess {
 	}
 
 	@Override
+	public void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException {
+		Files.createDirectory(dir, attrs);
+	}
+
+	@Override
 	public FileTime getLastModifiedTime(Path path, LinkOption... options) throws IOException {
 		return Files.getLastModifiedTime(path, options);
 	}
@@ -84,6 +89,21 @@ class DefaultNioAccess implements NioAccess {
 	@Override
 	public void setCreationTime(Path path, FileTime creationTime, LinkOption... options) throws IOException {
 		Files.getFileAttributeView(path, BasicFileAttributeView.class, options).setTimes(null, null, creationTime);
+	}
+
+	@Override
+	public FileTime getAccessTime(Path path, LinkOption... options) throws IOException {
+		return Files.readAttributes(path, BasicFileAttributes.class, options).lastAccessTime();
+	}
+
+	@Override
+	public void setAccessTime(Path path, FileTime accessTime, LinkOption... options) throws IOException {
+		Files.getFileAttributeView(path, BasicFileAttributeView.class, options).setTimes(null, accessTime, null);
+	}
+
+	@Override
+	public long size(Path path) throws IOException {
+		return Files.size(path);
 	}
 
 }

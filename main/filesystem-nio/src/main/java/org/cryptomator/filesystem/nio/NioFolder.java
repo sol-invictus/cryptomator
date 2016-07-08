@@ -52,26 +52,39 @@ class NioFolder extends NioNode implements Folder {
 
 	@Override
 	public File file(String name) throws UncheckedIOException {
-		assertDoesNotContainsSeparator(name);
+		if (name.charAt(0) == '/') {
+			name = name.substring(1);
+		}
+		if (name.isEmpty()) {
+			throw new IllegalArgumentException("Path must not be empty");
+		}
 		return files.get(path.resolve(name));
 	}
 
 	@Override
 	public Folder folder(String name) throws UncheckedIOException {
-		assertDoesNotContainsSeparator(name);
-		return folders.get(path.resolve(name));
-	}
-
-	private void assertDoesNotContainsSeparator(String name) {
-		if (name.contains(nioAccess.separator())) {
-			throw new IllegalArgumentException(format("Name must not contain file system separator (name: %s, separator: %s)", name, nioAccess.separator()));
+		if (name.charAt(0) == '/') {
+			name = name.substring(1);
 		}
+		if (name.isEmpty()) {
+			return this;
+		}
+		return folders.get(path.resolve(name));
 	}
 
 	@Override
 	public void create() throws UncheckedIOException {
 		try {
 			nioAccess.createDirectories(path);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Override
+	public void createNewFailingIfParentIsMissing() throws UncheckedIOException {
+		try {
+			nioAccess.createDirectory(path);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -109,6 +122,7 @@ class NioFolder extends NioNode implements Folder {
 		}
 	}
 
+	@Override
 	Path path() {
 		return path;
 	}
@@ -132,6 +146,15 @@ class NioFolder extends NioNode implements Folder {
 			return;
 		}
 		Deleter.deleteContent(this);
+		try {
+			nioAccess.delete(path);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Override
+	public void deleteIfEmpty() {
 		try {
 			nioAccess.delete(path);
 		} catch (IOException e) {

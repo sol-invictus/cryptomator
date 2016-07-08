@@ -16,7 +16,7 @@ import java.util.Optional;
  * <p>
  * A node's identity (i.e. {@link #hashCode()} and {@link #equals(Object)}) depends on its parent node and its name (forming the node's path).
  * These properties are meant to be immutable. This means that e.g. moving a node doesn't modify the node's identity but rather transfers properties to the destination node.
- * 
+ *
  * @author Markus Kreusch
  * @see Folder
  * @see File
@@ -46,7 +46,7 @@ public interface Node {
 	/**
 	 * <p>
 	 * Determines the last modified date of this node.
-	 * 
+	 *
 	 * @returns the last modified date of the file
 	 */
 	Instant lastModified() throws UncheckedIOException;
@@ -54,7 +54,7 @@ public interface Node {
 	/**
 	 * <p>
 	 * Sets the last modified date of the file.
-	 * 
+	 *
 	 * @param lastModified the time to set as creation time
 	 */
 	void setLastModified(Instant lastModified) throws UncheckedIOException;
@@ -64,7 +64,7 @@ public interface Node {
 	 * Determines the creation time of this node.
 	 * <p>
 	 * Note: Getting the creation time may not be supported by all {@link FileSystem FileSystems}.
-	 * 
+	 *
 	 * @returns the creation time of the file or {@link Optional#empty()} if not supported
 	 */
 	default Optional<Instant> creationTime() throws UncheckedIOException {
@@ -77,7 +77,32 @@ public interface Node {
 	 * <p>
 	 * Setting the creation time may not be supported by all {@link FileSystem FileSystems}. If the {@code FileSystem} this {@code Node} belongs to does not support the
 	 * setting the creation time the behavior of this method is unspecified.
-	 * 
+	 *
+	 * @param creationTime the time to set as creation time
+	 */
+	default void setAccessTime(Instant creationTime) throws UncheckedIOException {
+		throw new UncheckedIOException(new IOException("CreationTime not supported"));
+	}
+
+	/**
+	 * <p>
+	 * Determines the creation time of this node.
+	 * <p>
+	 * Note: Getting the creation time may not be supported by all {@link FileSystem FileSystems}.
+	 *
+	 * @returns the creation time of the file or {@link Optional#empty()} if not supported
+	 */
+	default Optional<Instant> accessTime() throws UncheckedIOException {
+		return Optional.empty();
+	}
+
+	/**
+	 * <p>
+	 * Sets the creation time of this node.
+	 * <p>
+	 * Setting the creation time may not be supported by all {@link FileSystem FileSystems}. If the {@code FileSystem} this {@code Node} belongs to does not support the
+	 * setting the creation time the behavior of this method is unspecified.
+	 *
 	 * @param creationTime the time to set as creation time
 	 */
 	default void setCreationTime(Instant creationTime) throws UncheckedIOException {

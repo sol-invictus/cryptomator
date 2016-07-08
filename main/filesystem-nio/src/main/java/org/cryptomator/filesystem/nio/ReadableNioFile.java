@@ -1,39 +1,39 @@
 package org.cryptomator.filesystem.nio;
 
 import static java.lang.String.format;
-import static org.cryptomator.filesystem.nio.OpenMode.READ;
+import static org.cryptomator.filesystem.ReadResult.NO_EOF;
 
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.file.Path;
 
+import org.cryptomator.filesystem.ReadResult;
 import org.cryptomator.filesystem.ReadableFile;
 
 class ReadableNioFile implements ReadableFile {
 
 	private final Path path;
 	private final SharedFileChannel channel;
-	private final Runnable afterCloseCallback;
 
 	private boolean open = true;
-	private long position = 0;
 
-	public ReadableNioFile(Path path, SharedFileChannel channel, Runnable afterCloseCallback) {
+	public ReadableNioFile(Path path, SharedFileChannel channel) {
 		this.path = path;
 		this.channel = channel;
-		this.afterCloseCallback = afterCloseCallback;
-		channel.open(READ);
+		channel.openForReading();
 	}
 
 	@Override
-	public int read(ByteBuffer target) throws UncheckedIOException {
+	public ReadResult read(long offset, ByteBuffer target) throws UncheckedIOException {
 		assertOpen();
-		int read = channel.readFully(position, target);
-		if (read != SharedFileChannel.EOF) {
-			position += read;
+		if (channel.readFully(offset, target) == SharedFileChannel.EOF) {
+			return ReadResult.EOF;
+		} else if (target.hasRemaining()) {
+			return ReadResult.EOF_REACHED;
+		} else {
+			return NO_EOF;
 		}
-		return read;
 	}
 
 	@Override
@@ -47,25 +47,12 @@ class ReadableNioFile implements ReadableFile {
 	}
 
 	@Override
-	public void position(long position) throws UncheckedIOException {
-		assertOpen();
-		if (position < 0) {
-			throw new IllegalArgumentException();
-		}
-		this.position = position;
-	}
-
-	@Override
 	public void close() {
 		if (!open) {
 			return;
 		}
 		open = false;
-		try {
-			channel.close();
-		} finally {
-			afterCloseCallback.run();
-		}
+		channel.close();
 	}
 
 	private void assertOpen() {

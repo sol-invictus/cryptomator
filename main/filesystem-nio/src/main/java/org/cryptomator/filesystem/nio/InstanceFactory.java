@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 import org.cryptomator.common.Holder;
+import org.cryptomator.filesystem.CreateMode;
 import org.cryptomator.filesystem.FileSystem;
 
 interface InstanceFactory {
@@ -16,8 +17,8 @@ interface InstanceFactory {
 
 	SharedFileChannel sharedFileChannel(Path path, NioAccess nioAccess);
 
-	WritableNioFile writableNioFile(FileSystem fileSystem, Path path, SharedFileChannel channel, Runnable afterCloseCallback);
+	WritableNioFile writableNioFile(FileSystem fileSystem, Path path, SharedFileChannel channel, CreateMode mode);
 
-	ReadableNioFile readableNioFile(Path path, SharedFileChannel channel, Runnable afterCloseCallback);
+	ReadableNioFile readableNioFile(Path path, SharedFileChannel channel);
 
 }

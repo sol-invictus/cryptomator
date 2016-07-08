@@ -1,16 +1,13 @@
 package org.cryptomator.filesystem.nio;
 
 import static java.lang.String.format;
-import static org.cryptomator.filesystem.nio.OpenMode.WRITE;
+import static org.cryptomator.filesystem.CreateMode.CREATE_IF_MISSING;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
 
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -38,8 +35,6 @@ public class WritableNioFileTest {
 
 	private SharedFileChannel channel;
 
-	private Runnable afterCloseCallback;
-
 	private WritableNioFile inTest;
 
 	@Before
@@ -47,8 +42,7 @@ public class WritableNioFileTest {
 		fileSystem = mock(FileSystem.class);
 		channel = mock(SharedFileChannel.class);
 		path = mock(Path.class);
-		afterCloseCallback = mock(Runnable.class);
-		inTest = new WritableNioFile(fileSystem, path, channel, afterCloseCallback);
+		inTest = new WritableNioFile(fileSystem, path, channel, CREATE_IF_MISSING);
 	}
 
 	public class ConstructorTests {
@@ -72,67 +66,26 @@ public class WritableNioFileTest {
 
 	public class WriteTests {
 
+		private static final long POSITION = 87273;
+
 		@Test
 		public void testWriteOpensChannelIfClosedBeforeInvokingWriteFully() {
 			ByteBuffer irrelevant = null;
 
-			inTest.write(irrelevant);
+			inTest.write(POSITION, irrelevant);
 
 			InOrder inOrder = inOrder(channel);
-			inOrder.verify(channel).open(WRITE);
-			inOrder.verify(channel).writeFully(0, irrelevant);
+			inOrder.verify(channel).openForWriting(CREATE_IF_MISSING);
+			inOrder.verify(channel).writeFully(POSITION, irrelevant);
 		}
 
 		@Test
 		public void testWriteDoesNotModifyBuffer() {
 			ByteBuffer buffer = mock(ByteBuffer.class);
 
-			inTest.write(buffer);
+			inTest.write(POSITION, buffer);
 
 			verifyZeroInteractions(buffer);
-		}
-
-		@Test
-		public void testWriteInvokesWriteFullyWithZeroPositionIfNotSet() {
-			ByteBuffer buffer = mock(ByteBuffer.class);
-
-			inTest.write(buffer);
-
-			verify(channel).writeFully(0, buffer);
-		}
-
-		@Test
-		public void testWriteInvokesWriteFullyWithSetPosition() {
-			ByteBuffer buffer = mock(ByteBuffer.class);
-			long position = 10;
-			inTest.position(position);
-
-			inTest.write(buffer);
-
-			verify(channel).writeFully(position, buffer);
-		}
-
-		@Test
-		public void testWriteInvokesWriteFullyWithEndOfPreviousWriteIfInvokedTwice() {
-			ByteBuffer buffer = mock(ByteBuffer.class);
-			int endOfPreviousWrite = 10;
-			when(channel.writeFully(0, buffer)).thenReturn(endOfPreviousWrite);
-
-			inTest.write(buffer);
-			inTest.write(buffer);
-
-			verify(channel).writeFully(endOfPreviousWrite, buffer);
-		}
-
-		@Test
-		public void testWriteReturnsResultOfWriteFully() {
-			ByteBuffer buffer = mock(ByteBuffer.class);
-			int resultOfWriteFully = 14;
-			when(channel.writeFully(0, buffer)).thenReturn(resultOfWriteFully);
-
-			int result = inTest.write(buffer);
-
-			assertThat(result, is(resultOfWriteFully));
 		}
 
 	}
@@ -144,15 +97,23 @@ public class WritableNioFileTest {
 			inTest.truncate();
 
 			InOrder inOrder = inOrder(channel);
-			inOrder.verify(channel).open(WRITE);
-			inOrder.verify(channel).truncate(anyInt());
+			inOrder.verify(channel).openForWriting(CREATE_IF_MISSING);
+			inOrder.verify(channel).truncate(0);
 		}
 
 		@Test
-		public void testTruncateChannelsTruncateWithZeroAsParameter() {
+		public void testTruncateInvokesChannelsTruncateWithZeroAsParameter() {
 			inTest.truncate();
 
 			verify(channel).truncate(0);
+		}
+
+		@Test
+		public void testTruncateWithSizeInvokesChannelsTruncateWithSameSizeAsParameter() {
+			int newSize = 5232;
+			inTest.truncate(newSize);
+
+			verify(channel).truncate(newSize);
 		}
 
 	}
@@ -160,14 +121,12 @@ public class WritableNioFileTest {
 	public class CloseTests {
 
 		@Test
-		public void testCloseClosesChannelIfOpenedAndInvokesAfterCloseCallback() {
+		public void testCloseClosesChannelIfOpened() {
 			inTest.truncate();
 
 			inTest.close();
 
-			InOrder inOrder = inOrder(channel, afterCloseCallback);
-			inOrder.verify(channel).close();
-			inOrder.verify(afterCloseCallback).run();
+			verify(channel).close();
 		}
 
 		@Test
@@ -177,24 +136,7 @@ public class WritableNioFileTest {
 			inTest.close();
 			inTest.close();
 
-			InOrder inOrder = inOrder(channel, afterCloseCallback);
-			inOrder.verify(channel).close();
-			verify(afterCloseCallback).run();
-		}
-
-		@Test
-		public void testCloseInvokesAfterCloseCallbackEvenIfCloseThrowsException() {
-			inTest.truncate();
-			String message = "exceptionMessage";
-			doThrow(new RuntimeException(message)).when(channel).close();
-
-			thrown.expectMessage(message);
-
-			try {
-				inTest.close();
-			} finally {
-				verify(afterCloseCallback).run();
-			}
+			verify(channel).close();
 		}
 
 	}
@@ -225,18 +167,7 @@ public class WritableNioFileTest {
 			thrown.expect(UncheckedIOException.class);
 			thrown.expectMessage("already closed");
 
-			inTest.write(irrelevant);
-		}
-
-		@Test
-		public void testPositionFailsIfClosed() {
-			inTest.close();
-			long irrelevant = 1023;
-
-			thrown.expect(UncheckedIOException.class);
-			thrown.expectMessage("already closed");
-
-			inTest.position(irrelevant);
+			inTest.write(0, irrelevant);
 		}
 
 		@Test
@@ -249,36 +180,6 @@ public class WritableNioFileTest {
 			inTest.truncate();
 		}
 
-	}
-
-	@Test
-	public void testEnsureChannelIsOpenedInvokesChannelOpenWithModeWrite() {
-		inTest.ensureChannelIsOpened();
-
-		verify(channel).open(WRITE);
-	}
-
-	@Test
-	public void testEnsureChannelIsOpenedInvokesChannelOpenWithModeWriteOnlyOnceIfInvokedTwice() {
-		inTest.ensureChannelIsOpened();
-		inTest.ensureChannelIsOpened();
-
-		verify(channel).open(WRITE);
-	}
-
-	@Test
-	public void testCloseChannelIfOpenInvokesChannelsCloseIfOpenedEarlier() {
-		inTest.ensureChannelIsOpened();
-		inTest.closeChannelIfOpened();
-
-		verify(channel).close();
-	}
-
-	@Test
-	public void testCloseChannelIfOpenDoesNotInvokeChannelsCloseIfNotOpenedEarlier() {
-		inTest.closeChannelIfOpened();
-
-		verifyZeroInteractions(channel);
 	}
 
 	@Test

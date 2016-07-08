@@ -41,6 +41,7 @@
 		<jackson-databind.version>2.4.4</jackson-databind.version>
 		<mockito.version>1.10.19</mockito.version>
 		<dagger.version>2.4</dagger.version>
+		<powermock.version>1.6.5</powermock.version>
 	</properties>
 
 	<repositories>
@@ -261,6 +262,26 @@
 				<artifactId>hamcrest-all</artifactId>
 				<version>${hamcrest.version}</version>
 			</dependency>
+			<dependency>
+			    <groupId>org.powermock</groupId>
+			    <artifactId>powermock-module-junit4</artifactId>
+			    <version>${powermock.version}</version>
+			</dependency>
+			<dependency>
+			    <groupId>org.powermock</groupId>
+			    <artifactId>powermock-api-mockito</artifactId>
+			    <version>${powermock.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-module-junit4-rule</artifactId>
+				<version>${powermock.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-classloading-xstream</artifactId>
+				<version>${powermock.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -282,17 +303,18 @@
 	<modules>
 		<module>commons</module>
 		<module>commons-test</module>
-		<module>filesystem-api</module>
+		<!-- <module>filesystem-api</module>
 		<module>filesystem-inmemory</module>
 		<module>filesystem-nio</module>
 		<module>filesystem-nameshortening</module>
 		<module>filesystem-crypto</module>
 		<module>filesystem-crypto-integration-tests</module>
 		<module>filesystem-stats</module>
-		<module>filesystem-invariants-tests</module>
+		<module>filesystem-invariants-tests</module> -->
 		<module>frontend-api</module>
-		<module>frontend-webdav</module>
-		<module>ui</module>
+		<module>frontend-fuse</module>
+		<!-- <module>frontend-webdav</module>
+		<module>ui</module> -->
 	</modules>
 
 	<profiles>

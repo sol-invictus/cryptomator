@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.cryptomator.common.Holder;
+import org.cryptomator.filesystem.CreateMode;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,79 +58,110 @@ public class SharedFileChannelTest {
 	public class Open {
 
 		@Test
-		public void testOpenFailsIfPathIsADirectory() {
+		public void testOpenForReadingFailsIfPathIsADirectory() {
 			when(nioAccess.isDirectory(path)).thenReturn(true);
 
 			thrown.expect(UncheckedIOException.class);
 			thrown.expectMessage(format("%s is a directory", path));
 
-			inTest.open(OpenMode.WRITE);
+			inTest.openForReading();
 		}
 
 		@Test
-		public void testOpenFailsIfFileDoesNotExistAndOpenModeIsRead() {
+		public void testOpenForWritingFailsIfPathIsADirectory() {
+			when(nioAccess.isDirectory(path)).thenReturn(true);
+
+			thrown.expect(UncheckedIOException.class);
+			thrown.expectMessage(format("%s is a directory", path));
+
+			inTest.openForWriting(null);
+		}
+
+		@Test
+		public void testOpenForReadingFailsIfFileDoesNotExist() {
 			when(nioAccess.isDirectory(path)).thenReturn(false);
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 
 			thrown.expect(UncheckedIOException.class);
 			thrown.expectMessage(format("%s does not exist", path));
 
-			inTest.open(OpenMode.READ);
+			inTest.openForReading();
 		}
 
 		@Test
-		public void testOpenOpensAChannelIfOpenModeIsReadAndFileExists() throws IOException {
-			when(nioAccess.isDirectory(path)).thenReturn(false);
-			when(nioAccess.isRegularFile(path)).thenReturn(true);
-
-			inTest.open(OpenMode.READ);
-
-			verify(nioAccess).open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-		}
-
-		@Test
-		public void testOpenOpensAChannelIfOpenModeIsWriteAndFileExists() throws IOException {
-			when(nioAccess.isDirectory(path)).thenReturn(false);
-			when(nioAccess.isRegularFile(path)).thenReturn(true);
-
-			inTest.open(OpenMode.WRITE);
-
-			verify(nioAccess).open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-		}
-
-		@Test
-		public void testOpenOpensAChannelIfOpenModeIsWriteAndFileDoesNotExist() throws IOException {
+		public void testOpenForWritingFailsIfFileDoesNotExistAndCreateModeIsFailIfMissing() {
 			when(nioAccess.isDirectory(path)).thenReturn(false);
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 
-			inTest.open(OpenMode.WRITE);
+			thrown.expect(UncheckedIOException.class);
+			thrown.expectMessage(format("%s does not exist", path));
+
+			inTest.openForWriting(CreateMode.FAIL_IF_MISSING);
+		}
+
+		@Test
+		public void testOpenForReadingOpensChannelWithReadAndWriteFlag() throws IOException {
+			when(nioAccess.isDirectory(path)).thenReturn(false);
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
+
+			inTest.openForReading();
+
+			verify(nioAccess).open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
+		}
+
+		@Test
+		public void testOpenForWritingOpensChannelWithReadAndWriteFlagIfCreateModeIsFailIfMissing() throws IOException {
+			when(nioAccess.isDirectory(path)).thenReturn(false);
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
+
+			inTest.openForWriting(CreateMode.FAIL_IF_MISSING);
+
+			verify(nioAccess).open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
+		}
+
+		@Test
+		public void testOpenForWritingOpensChannelWithCreateNewReadAndWriteFlagIfCreateModeIsCreateAndFailIfPresent() throws IOException {
+			when(nioAccess.isDirectory(path)).thenReturn(false);
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
+
+			inTest.openForWriting(CreateMode.CREATE_AND_FAIL_IF_PRESENT);
+
+			verify(nioAccess).open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.READ, StandardOpenOption.WRITE);
+		}
+
+		@Test
+		public void testOpenForWritingOpensChannelWithCreateReadAndWriteFlagIfCreateModeIsCreateIfMIssing() throws IOException {
+			when(nioAccess.isDirectory(path)).thenReturn(false);
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
+
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 
 			verify(nioAccess).open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
 		}
 
 		@Test
-		public void testOpenWrapsExceptionsFromOpeningChannelInUncheckedIOExceptions() throws IOException {
+		public void testOpenForReadingWrapsExceptionsFromOpeningChannelInUncheckedIOExceptions() throws IOException {
 			when(nioAccess.isDirectory(path)).thenReturn(false);
-			when(nioAccess.isRegularFile(path)).thenReturn(false);
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
 			IOException exceptionFromOpeningChannel = new IOException();
-			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenThrow(exceptionFromOpeningChannel);
+			when(nioAccess.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenThrow(exceptionFromOpeningChannel);
 
 			thrown.expect(UncheckedIOException.class);
 			thrown.expectCause(is(exceptionFromOpeningChannel));
 
-			inTest.open(OpenMode.WRITE);
+			inTest.openForReading();
 		}
 
 		@Test
 		public void testOpenDoesNotOpenChannelTwiceIfInvokedTwiceByDifferentThreads() throws IOException {
 			when(nioAccess.isDirectory(path)).thenReturn(false);
-			when(nioAccess.isRegularFile(path)).thenReturn(false);
-			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(mock(AsynchronousFileChannel.class));
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
+			when(nioAccess.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(mock(AsynchronousFileChannel.class));
 
-			inThreadRethrowingException(() -> inTest.open(OpenMode.WRITE));
-			inThreadRethrowingException(() -> inTest.open(OpenMode.WRITE));
+			inThreadRethrowingException(() -> inTest.openForReading());
+			inThreadRethrowingException(() -> inTest.openForReading());
 
-			verify(nioAccess).open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+			verify(nioAccess).open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
 		}
 
 	}
@@ -147,9 +179,9 @@ public class SharedFileChannelTest {
 		@Test
 		public void testCloseIfClosedFails() throws IOException {
 			when(nioAccess.isDirectory(path)).thenReturn(false);
-			when(nioAccess.isRegularFile(path)).thenReturn(false);
-			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(mock(AsynchronousFileChannel.class));
-			inTest.open(OpenMode.WRITE);
+			when(nioAccess.isRegularFile(path)).thenReturn(true);
+			when(nioAccess.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(mock(AsynchronousFileChannel.class));
+			inTest.openForReading();
 			inTest.close();
 
 			thrown.expect(IllegalStateException.class);
@@ -164,7 +196,7 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 			AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 
 			inTest.close();
 
@@ -179,7 +211,7 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 			AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 			IOException exceptionFromForce = new IOException();
 			doThrow(exceptionFromForce).when(channel).force(true);
 
@@ -199,7 +231,7 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 			AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 			IOException exceptionFromClose = new IOException();
 			doThrow(exceptionFromClose).when(nioAccess).close(channel);
 
@@ -215,8 +247,8 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 			AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
-			inThreadRethrowingException(() -> inTest.open(OpenMode.WRITE));
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
+			inThreadRethrowingException(() -> inTest.openForWriting(CreateMode.CREATE_IF_MISSING));
 
 			inTest.close();
 
@@ -229,9 +261,9 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(false);
 			AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 			inThreadRethrowingException(() -> {
-				inTest.open(OpenMode.WRITE);
+				inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 				inTest.close();
 			});
 
@@ -254,8 +286,8 @@ public class SharedFileChannelTest {
 			when(nioAccess.isDirectory(path)).thenReturn(false);
 			when(nioAccess.isRegularFile(path)).thenReturn(true);
 			channel = mock(AsynchronousFileChannel.class);
-			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.READ);
+			when(nioAccess.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
+			inTest.openForReading();
 		}
 
 		@Test
@@ -355,7 +387,7 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(true);
 			channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 		}
 
 		@Test
@@ -391,7 +423,7 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(true);
 			channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 		}
 
 		@Test
@@ -417,123 +449,6 @@ public class SharedFileChannelTest {
 
 	}
 
-	// TODO fix / implement tests
-	// public class TransferTo {
-	//
-	// private AsynchronousFileChannel channel;
-	//
-	// private Path targetPath;
-	// private SharedFileChannel targetInTest;
-	// private AsynchronousFileChannel targetChannel;
-	//
-	// @Before
-	// public void setUp() throws IOException {
-	// targetPath = mock(Path.class);
-	// targetInTest = new SharedFileChannel(targetPath, nioAccess);
-	//
-	// when(nioAccess.isDirectory(path)).thenReturn(false);
-	// when(nioAccess.isRegularFile(path)).thenReturn(true);
-	// channel = mock(AsynchronousFileChannel.class);
-	// when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-	// inTest.open(OpenMode.WRITE);
-	//
-	// when(nioAccess.isDirectory(targetPath)).thenReturn(false);
-	// when(nioAccess.isRegularFile(targetPath)).thenReturn(true);
-	// targetChannel = mock(AsynchronousFileChannel.class);
-	// when(nioAccess.open(targetPath, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(targetChannel);
-	// targetInTest.open(OpenMode.WRITE);
-	// }
-	//
-	// @Test
-	// public void testTransferToThrowsIllegalArugmentExceptionIfCountIsNegative() {
-	// thrown.expect(IllegalArgumentException.class);
-	// thrown.expectMessage("Count must not be negative");
-	//
-	// inTest.transferTo(0, -1, targetInTest, 0);
-	// }
-	//
-	// @Test
-	// public void testTransferToSetsPositionOfTargetChannelAndThenDelegatesToChannelsTransferTo() throws IOException {
-	// long targetPosition = 43L;
-	// long startPosition = 22L;
-	// long count = 39L;
-	// when(channel.transferTo(startPosition, count, targetChannel)).thenReturn(count);
-	// when(channel.size()).thenReturn(startPosition + count);
-	//
-	// long result = inTest.transferTo(startPosition, count, targetInTest, targetPosition);
-	//
-	// assertThat(result, is(count));
-	// InOrder inOrder = inOrder(channel, targetChannel);
-	// inOrder.verify(targetChannel).position(targetPosition);
-	// inOrder.verify(channel).transferTo(startPosition, count, targetChannel);
-	// }
-	//
-	// @Test
-	// public void testTransferToInvokesTransferUntilAllBytesHaveBeenTransferred() throws IOException {
-	// long targetPosition = 43L;
-	// long startPosition = 22L;
-	// long count = 39L;
-	// long firstTransferCount = 10L;
-	// long secondTransferCount = 7L;
-	// long thridTransferCount = count - firstTransferCount - secondTransferCount;
-	// when(channel.transferTo(startPosition, count, targetChannel)).thenReturn(firstTransferCount);
-	// when(channel.transferTo(startPosition + firstTransferCount, count - firstTransferCount, targetChannel)).thenReturn(secondTransferCount);
-	// when(channel.transferTo(startPosition + firstTransferCount + secondTransferCount, thridTransferCount, targetChannel)).thenReturn(thridTransferCount);
-	// when(channel.size()).thenReturn(startPosition + count);
-	//
-	// long result = inTest.transferTo(startPosition, count, targetInTest, targetPosition);
-	//
-	// assertThat(result, is(count));
-	// InOrder inOrder = inOrder(channel, targetChannel);
-	// inOrder.verify(targetChannel).position(targetPosition);
-	// inOrder.verify(channel).transferTo(startPosition, count, targetChannel);
-	// inOrder.verify(channel).transferTo(startPosition + firstTransferCount, count - firstTransferCount, targetChannel);
-	// inOrder.verify(channel).transferTo(startPosition + firstTransferCount + secondTransferCount, thridTransferCount, targetChannel);
-	// }
-	//
-	// @Test
-	// public void testTransferToStopsTransferAtEndOfSourceFile() throws IOException {
-	// long targetPosition = 43L;
-	// long startPosition = 22L;
-	// long count = 39L;
-	// long countAvailable = 30L;
-	// when(channel.transferTo(startPosition, countAvailable, targetChannel)).thenReturn(countAvailable);
-	// when(channel.size()).thenReturn(startPosition + countAvailable);
-	//
-	// long result = inTest.transferTo(startPosition, count, targetInTest, targetPosition);
-	//
-	// assertThat(result, is(countAvailable));
-	// InOrder inOrder = inOrder(channel, targetChannel);
-	// inOrder.verify(targetChannel).position(targetPosition);
-	// inOrder.verify(channel).transferTo(startPosition, countAvailable, targetChannel);
-	// }
-	//
-	// @Test
-	// public void testTransferToWrapsIOExceptionFromPositionInUncheckedIOException() throws IOException {
-	// when(channel.size()).thenReturn(Long.MAX_VALUE);
-	// IOException exceptionFromPosition = new IOException();
-	// when(targetChannel.position(anyLong())).thenThrow(exceptionFromPosition);
-	//
-	// thrown.expect(UncheckedIOException.class);
-	// thrown.expectCause(is(exceptionFromPosition));
-	//
-	// inTest.transferTo(0L, 10L, targetInTest, 0L);
-	// }
-	//
-	// @Test
-	// public void testTransferToWrapsIOExceptionFromTransferToInUncheckedIOException() throws IOException {
-	// when(channel.size()).thenReturn(Long.MAX_VALUE);
-	// IOException exceptionFromTransferTo = new IOException();
-	// when(channel.transferTo(anyLong(), anyLong(), any())).thenThrow(exceptionFromTransferTo);
-	//
-	// thrown.expect(UncheckedIOException.class);
-	// thrown.expectCause(is(exceptionFromTransferTo));
-	//
-	// inTest.transferTo(0L, 10L, targetInTest, 0L);
-	// }
-	//
-	// }
-
 	public class WriteFully {
 
 		@Rule
@@ -547,7 +462,7 @@ public class SharedFileChannelTest {
 			when(nioAccess.isRegularFile(path)).thenReturn(true);
 			channel = mock(AsynchronousFileChannel.class);
 			when(nioAccess.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)).thenReturn(channel);
-			inTest.open(OpenMode.WRITE);
+			inTest.openForWriting(CreateMode.CREATE_IF_MISSING);
 		}
 
 		@Test

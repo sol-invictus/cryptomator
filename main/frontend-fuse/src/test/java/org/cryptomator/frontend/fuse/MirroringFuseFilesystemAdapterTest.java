@@ -1,38 +1,31 @@
 package org.cryptomator.frontend.fuse;
 
 import static java.lang.String.format;
+import static java.util.Collections.emptyMap;
+import static org.cryptomator.frontend.fuse.impl.NioFuseOperationsFactory.Flag.LOG_DATA;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import org.cryptomator.filesystem.FileSystem;
-import org.cryptomator.filesystem.nio.NioFileSystem;
-
-import net.fusejna.FuseException;
-import net.fusejna.FuseFilesystem;
+import org.cryptomator.frontend.CommandFailedException;
+import org.cryptomator.frontend.Frontend;
 
 public class MirroringFuseFilesystemAdapterTest {
 
-	public static void main(String[] args) throws FuseException, IOException {
-		if (args.length != 2) {
-			System.err.println("Usage: FuseFilesystemAdapterTest <pathToMirroredFileSystem> <mountpoint>");
+	public static void main(String[] args) throws IOException, CommandFailedException {
+		if (args.length != 1) {
+			System.err.println("Usage: FuseFilesystemAdapterTest <pathToMirroredFileSystem>");
 			System.exit(1);
 		}
-		FileSystem fileSystem = NioFileSystem.rootedAt(Paths.get(args[0]));
-		FuseFilesystem fuseFilesystem = new FuseFilesystemAdapter(fileSystem);
 		
-		File mountpoint = new File(args[1]);
-		try {
-			Files.delete(mountpoint.toPath());
-		} catch (IOException e) {}
-		mountpoint.mkdir();
-		fuseFilesystem.mount(mountpoint, false);
-		System.out.println(format("Mirroring %s to %s", args[0], args[1]));
+		FuseFrontendFactory frontendFactory = DaggerFuseFrontendComponent.create().fuseFrontendFactory();
+		Frontend frontend = frontendFactory.create(Paths.get(args[0]));
+		
+		frontend.mount(emptyMap());
+		System.out.println(format("Mirroring %s", args[0]));
 		System.out.println("Press any key to unmount...");
 		System.in.read();
-		fuseFilesystem.unmount();
+		frontend.unmount();
 	}
 
 }

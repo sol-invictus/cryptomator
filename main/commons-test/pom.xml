@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Copyright (c) 2015 Markus Kreusch
-  This file is licensed under the terms of the MIT license.
-  See the LICENSE.txt file for more info.
--->
+<!-- Copyright (c) 2015 Markus Kreusch This file is licensed under the terms 
+	of the MIT license. See the LICENSE.txt file for more info. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
@@ -21,7 +18,7 @@
 			<groupId>org.cryptomator</groupId>
 			<artifactId>commons</artifactId>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -38,6 +35,22 @@
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4-rule</artifactId>
+		</dependency>
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-classloading-xstream</artifactId>
+			</dependency>
 	</dependencies>
 
 </project>

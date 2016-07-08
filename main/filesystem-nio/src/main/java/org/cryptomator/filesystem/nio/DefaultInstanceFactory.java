@@ -3,6 +3,7 @@ package org.cryptomator.filesystem.nio;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import org.cryptomator.filesystem.CreateMode;
 import org.cryptomator.filesystem.FileSystem;
 
 class DefaultInstanceFactory implements InstanceFactory {
@@ -23,13 +24,13 @@ class DefaultInstanceFactory implements InstanceFactory {
 	}
 
 	@Override
-	public WritableNioFile writableNioFile(FileSystem fileSystem, Path path, SharedFileChannel channel, Runnable afterCloseCallback) {
-		return new WritableNioFile(fileSystem, path, channel, afterCloseCallback);
+	public WritableNioFile writableNioFile(FileSystem fileSystem, Path path, SharedFileChannel channel, CreateMode mode) {
+		return new WritableNioFile(fileSystem, path, channel, mode);
 	}
 
 	@Override
-	public ReadableNioFile readableNioFile(Path path, SharedFileChannel channel, Runnable afterCloseCallback) {
-		return new ReadableNioFile(path, channel, afterCloseCallback);
+	public ReadableNioFile readableNioFile(Path path, SharedFileChannel channel) {
+		return new ReadableNioFile(path, channel);
 	}
 
 }

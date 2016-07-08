@@ -7,19 +7,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.cryptomator.filesystem.CreateMode;
 import org.cryptomator.filesystem.File;
 import org.cryptomator.filesystem.ReadableFile;
 import org.cryptomator.filesystem.WritableFile;
 
 class NioFile extends NioNode implements File {
 
-	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 	private final SharedFileChannel sharedChannel;
 
 	public NioFile(Optional<NioFolder> parent, Path eventuallyNonAbsolutePath, NioAccess nioAccess, InstanceFactory instanceFactory) {
@@ -29,40 +25,12 @@ class NioFile extends NioNode implements File {
 
 	@Override
 	public ReadableFile openReadable() throws UncheckedIOException {
-		if (lock.getWriteHoldCount() > 0) {
-			throw new IllegalStateException("Current thread is currently writing this file");
-		}
-		if (lock.getReadHoldCount() > 0) {
-			throw new IllegalStateException("Current thread is already reading this file");
-		}
-		lock.readLock().lock();
-		return instanceFactory.readableNioFile(path, sharedChannel, this::unlockReadLock);
-	}
-
-	private void unlockReadLock() {
-		lock.readLock().unlock();
+		return instanceFactory.readableNioFile(path, sharedChannel);
 	}
 
 	@Override
-	public WritableFile openWritable() throws UncheckedIOException {
-		if (lock.getWriteHoldCount() > 0) {
-			throw new IllegalStateException("Current thread is already writing this file");
-		}
-		if (lock.getReadHoldCount() > 0) {
-			throw new IllegalStateException("Current thread is currently reading this file");
-		}
-		lockWriteLock();
-		return instanceFactory.writableNioFile(fileSystem(), path, sharedChannel, this::unlockWriteLock);
-	}
-
-	// visible for testing
-	void lockWriteLock() {
-		lock.writeLock().lock();
-	}
-
-	// visible for testing
-	void unlockWriteLock() {
-		lock.writeLock().unlock();
+	public WritableFile openWritable(CreateMode mode) throws UncheckedIOException {
+		return instanceFactory.writableNioFile(fileSystem(), path, sharedChannel, mode);
 	}
 
 	@Override
@@ -108,18 +76,10 @@ class NioFile extends NioNode implements File {
 
 	private void internalMoveTo(NioFile destination) {
 		assertMovePreconditionsAreMet(destination);
-		// TODO review deadlock-safety of locking two files. see DeadLockSafeFileOpener
-		List<NioFile> filesToBeLocked = new ArrayList<>();
-		filesToBeLocked.add(this);
-		filesToBeLocked.add(destination);
-		Collections.sort(filesToBeLocked);
-		filesToBeLocked.forEach(file -> file.lockWriteLock());
 		try {
 			nioAccess.move(path(), destination.path(), REPLACE_EXISTING);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
-		} finally {
-			filesToBeLocked.forEach(file -> file.unlockWriteLock());
 		}
 	}
 
@@ -147,6 +107,15 @@ class NioFile extends NioNode implements File {
 	@Override
 	public String toString() {
 		return format("NioFile(%s)", path);
+	}
+
+	@Override
+	public long size() {
+		try {
+			return nioAccess.size(path);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 }

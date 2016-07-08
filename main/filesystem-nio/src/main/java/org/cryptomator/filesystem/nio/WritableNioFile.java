@@ -1,13 +1,13 @@
 package org.cryptomator.filesystem.nio;
 
 import static java.lang.String.format;
-import static org.cryptomator.filesystem.nio.OpenMode.WRITE;
 
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.file.Path;
 
+import org.cryptomator.filesystem.CreateMode;
 import org.cryptomator.filesystem.FileSystem;
 import org.cryptomator.filesystem.WritableFile;
 
@@ -16,26 +16,20 @@ class WritableNioFile implements WritableFile {
 	private final FileSystem fileSystem;
 	private final Path path;
 	private final SharedFileChannel channel;
-	private final Runnable afterCloseCallback;
 
 	private boolean open = true;
-	private boolean channelOpened = false;
-	private long position = 0;
 
-	public WritableNioFile(FileSystem fileSystem, Path path, SharedFileChannel channel, Runnable afterCloseCallback) {
+	public WritableNioFile(FileSystem fileSystem, Path path, SharedFileChannel channel, CreateMode mode) {
 		this.fileSystem = fileSystem;
 		this.path = path;
 		this.channel = channel;
-		this.afterCloseCallback = afterCloseCallback;
+		channel.openForWriting(mode);
 	}
 
 	@Override
-	public int write(ByteBuffer source) throws UncheckedIOException {
+	public void write(long offset, ByteBuffer source) throws UncheckedIOException {
 		assertOpen();
-		ensureChannelIsOpened();
-		int written = channel.writeFully(position, source);
-		position += written;
-		return written;
+		channel.writeFully(offset, source);
 	}
 
 	@Override
@@ -44,16 +38,9 @@ class WritableNioFile implements WritableFile {
 	}
 
 	@Override
-	public void position(long position) throws UncheckedIOException {
+	public void truncate(long newSize) throws UncheckedIOException {
 		assertOpen();
-		this.position = position;
-	}
-
-	@Override
-	public void truncate() throws UncheckedIOException {
-		assertOpen();
-		ensureChannelIsOpened();
-		channel.truncate(0);
+		channel.truncate(newSize);
 	}
 
 	@Override
@@ -62,24 +49,7 @@ class WritableNioFile implements WritableFile {
 			return;
 		}
 		open = false;
-		try {
-			closeChannelIfOpened();
-		} finally {
-			afterCloseCallback.run();
-		}
-	}
-
-	void ensureChannelIsOpened() {
-		if (!channelOpened) {
-			channel.open(WRITE);
-			channelOpened = true;
-		}
-	}
-
-	void closeChannelIfOpened() {
-		if (channelOpened) {
-			channel.close();
-		}
+		channel.close();
 	}
 
 	FileSystem fileSystem() {
@@ -94,10 +64,6 @@ class WritableNioFile implements WritableFile {
 		return channel;
 	}
 
-	void invokeAfterCloseCallback() {
-		afterCloseCallback.run();
-	}
-
 	void assertOpen() {
 		if (!open) {
 			throw new UncheckedIOException(format("%s already closed.", this), new ClosedChannelException());
@@ -107,6 +73,16 @@ class WritableNioFile implements WritableFile {
 	@Override
 	public String toString() {
 		return format("WritableNioFile(%s)", path);
+	}
+
+	@Override
+	public void flush() throws UncheckedIOException {
+		channel.flush();
+	}
+
+	@Override
+	public long size() throws UncheckedIOException {
+		return channel.size();
 	}
 
 }
