@@ -1,9 +1,13 @@
 package org.cryptomator.frontend.fuse.impl;
 
+import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Arrays.stream;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.validateMockitoUsage;
@@ -13,29 +17,43 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileStore;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.cryptomator.frontend.fuse.api.Attributes;
 import org.cryptomator.frontend.fuse.api.FileHandle;
+import org.cryptomator.frontend.fuse.api.FilesystemStats;
 import org.cryptomator.frontend.fuse.api.FuseOperations;
 import org.cryptomator.frontend.fuse.api.FuseResult;
 import org.cryptomator.frontend.fuse.api.StandardFuseResult;
+import org.cryptomator.frontend.fuse.api.Times;
 import org.cryptomator.frontend.fuse.api.WritableFileHandle;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import de.bechte.junit.runners.context.HierarchicalContextRunner;
 
 @RunWith(HierarchicalContextRunner.class)
 public class NioFuseOperationsTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 	
 	private Path root = mock(Path.class);
 	
@@ -52,9 +70,12 @@ public class NioFuseOperationsTest {
 		GetattrCacheFactory getattrCacheFactory = mock(GetattrCacheFactory.class);
 		when(getattrCacheFactory.create(any())).thenReturn(getattrCache);
 		
+		when(nioAccess.exists(root)).thenReturn(true);
+		when(nioAccess.isDirectory(root)).thenReturn(true);
+		
 		inTest = new NioFuseOperations(root, nioAccess, openFiles, getattrCacheFactory);
 	}
-	
+
 	@After
 	public void tearDown() {
 		validateMockitoUsage();
@@ -80,6 +101,14 @@ public class NioFuseOperationsTest {
 			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
 		}
 		
+		@Test
+		public void testRootExists() {
+			FuseResult result = inTest.access("/");
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).exists(root);
+		}
+		
 	}
 	
 	public class Create {
@@ -102,6 +131,20 @@ public class NioFuseOperationsTest {
 			
 			assertThat(result, is(StandardFuseResult.SUCCESS));
 			verify(nioAccess).createFile(nonExistingPath.resolvedAgainstRoot());
+		}
+		
+		@Test
+		public void testCreateWrapsIOException() throws IOException {
+			String pathAsString = UUID.randomUUID().toString();
+			Path path = mock(Path.class);
+			when(root.resolve(pathAsString)).thenReturn(path);
+			IOException exception = new IOException();
+			doThrow(exception).when(nioAccess).createFile(path);
+			
+			thrown.expect(UncheckedIOException.class);
+			thrown.expectCause(is(exception));
+			
+			inTest.create(pathAsString);
 		}
 		
 	}
@@ -142,6 +185,83 @@ public class NioFuseOperationsTest {
 			
 			assertThat(result, is(StandardFuseResult.SUCCESS));
 			verify(getattrResult).fill(attributes);
+		}
+		
+	}
+	
+	public class GetattrLoader {
+		
+		private Function<Path,GetattrResult> loader;
+		
+		@Before
+		public void setUp() {
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			ArgumentCaptor<Function<Path,GetattrResult>> captor = (ArgumentCaptor)ArgumentCaptor.forClass(Function.class);
+			GetattrCacheFactory getattrCacheFactory = mock(GetattrCacheFactory.class);
+			when(getattrCacheFactory.create(captor.capture())).thenReturn(getattrCache);
+			
+			new NioFuseOperations(root, nioAccess, openFiles, getattrCacheFactory);
+			
+			loader = captor.getValue();
+		}
+		
+		@Test
+		public void testLoaderReturnsCorrectValuesForFile() throws IOException {
+			long creation = 12372;
+			long access = 43722;
+			long modified = 84721;
+			long size = 3472;
+			Path path = mock(Path.class);
+			BasicFileAttributes basicFileAttributes = mock(BasicFileAttributes.class);
+			when(basicFileAttributes.creationTime()).thenReturn(FileTime.fromMillis(creation));
+			when(basicFileAttributes.lastAccessTime()).thenReturn(FileTime.fromMillis(access));
+			when(basicFileAttributes.lastModifiedTime()).thenReturn(FileTime.fromMillis(modified));
+			when(basicFileAttributes.size()).thenReturn(size);
+			when(basicFileAttributes.isRegularFile()).thenReturn(true);
+			Attributes attributes = mock(Attributes.class);
+			when(nioAccess.readAttributes(path, BasicFileAttributes.class)).thenReturn(basicFileAttributes);
+			
+			loader.apply(path).fill(attributes);
+			
+			verify(attributes).accessTime(access);
+			verify(attributes).creationTime(creation);
+			verify(attributes).modificationTime(modified);
+			verify(attributes).size(size);
+			verify(attributes).file();
+		}
+		
+		@Test
+		public void testLoaderReturnsCorrectValuesForDirectory() throws IOException {
+			long creation = 12372;
+			long access = 43722;
+			long modified = 84721;
+			Path path = mock(Path.class);
+			BasicFileAttributes basicFileAttributes = mock(BasicFileAttributes.class);
+			when(basicFileAttributes.creationTime()).thenReturn(FileTime.fromMillis(creation));
+			when(basicFileAttributes.lastAccessTime()).thenReturn(FileTime.fromMillis(access));
+			when(basicFileAttributes.lastModifiedTime()).thenReturn(FileTime.fromMillis(modified));
+			when(basicFileAttributes.isDirectory()).thenReturn(true);
+			Attributes attributes = mock(Attributes.class);
+			when(nioAccess.readAttributes(path, BasicFileAttributes.class)).thenReturn(basicFileAttributes);
+			
+			loader.apply(path).fill(attributes);
+			
+			verify(attributes).accessTime(access);
+			verify(attributes).creationTime(creation);
+			verify(attributes).modificationTime(modified);
+			verify(attributes).folder();
+		}
+		
+		@Test
+		public void testLoaderWrapsIoExceptions() throws IOException {
+			Path path = mock(Path.class);
+			IOException exception = new IOException();
+			when(nioAccess.readAttributes(path, BasicFileAttributes.class)).thenThrow(exception);
+			
+			thrown.expect(UncheckedIOException.class);
+			thrown.expectCause(is(exception));
+			
+			loader.apply(path);
 		}
 		
 	}
@@ -220,12 +340,53 @@ public class NioFuseOperationsTest {
 		
 		@Test
 		public void testTruncateFailsForNonExistingFile() {
-			// TODO
+			MockedPath nonExistingPath = mockNonExistingPath();
+			long offset = 3727;
+			
+			FuseResult result = inTest.truncate(nonExistingPath.asString(), offset);
+			
+			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
 		}
 		
 		@Test
 		public void testTruncateDelegatesToOpenFileForExistingFile() {
-			// TODO
+			MockedPath existingPath = mockExistingPath();
+			long offset = 3727;
+			OpenFile openFile = mock(OpenFile.class);
+			when(openFiles.open(existingPath.resolvedAgainstRoot())).thenReturn(openFile);
+			FuseResult expectedResult = mock(FuseResult.class);
+			when(openFile.truncate(offset)).thenReturn(expectedResult);
+			
+			FuseResult result = inTest.truncate(existingPath.asString(), offset);
+			
+			assertThat(result, is(expectedResult));
+			InOrder inOrder = inOrder(openFile);
+			inOrder.verify(openFile).truncate(offset);
+			inOrder.verify(openFile).release();
+			inOrder.verifyNoMoreInteractions();
+		}
+		
+		@Test
+		public void testOpenFileIsReleasedEvenIfExceptionOccursDuringTruncate() {
+			MockedPath existingPath = mockExistingPath();
+			long offset = 3727;
+			OpenFile openFile = mock(OpenFile.class);
+			RuntimeException expectedException = new RuntimeException();
+			when(openFiles.open(existingPath.resolvedAgainstRoot())).thenReturn(openFile);
+			when(openFile.truncate(offset)).thenThrow(expectedException);
+			
+			RuntimeException exception = null;
+			try {
+				inTest.truncate(existingPath.asString(), offset);
+			} catch (RuntimeException e) {
+				exception = e;
+			}
+			
+			assertThat(exception, is(expectedException));
+			InOrder inOrder = inOrder(openFile);
+			inOrder.verify(openFile).truncate(offset);
+			inOrder.verify(openFile).release();
+			inOrder.verifyNoMoreInteractions();
 		}
 	
 		@Test
@@ -423,48 +584,111 @@ public class NioFuseOperationsTest {
 	public class Rename {
 		
 		@Test
-		public void testRenameMovesFileToNonExistingFile() {
-			// TODO
+		public void testRenameMovesFileToNonExistingFile() throws IOException {
+			MockedPath existingFile = mockExistingFile();
+			MockedPath nonExistingFile = mockNonExistingPath();
+			
+			FuseResult result = inTest.rename(existingFile.asString(), nonExistingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).move(existingFile.resolvedAgainstRoot(), nonExistingFile.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
 		}
 		
 		@Test
-		public void testRenameMovesFileToExistingFile() {
-			// TODO
+		public void testRenameMovesFileToExistingFile() throws IOException {
+			MockedPath existingFile = mockExistingFile();
+			MockedPath otherExistingFile = mockExistingFile();
+			
+			FuseResult result = inTest.rename(existingFile.asString(), otherExistingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).move(existingFile.resolvedAgainstRoot(), otherExistingFile.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
 		}
 		
 		@Test
-		public void testRenameMovesDirectoryToNonExistingDirectory() {
-			// TODO
+		public void testRenameMovesDirectoryToNonExistingDirectory() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			MockedPath nonExistingDirectory = mockNonExistingPath();
+			
+			FuseResult result = inTest.rename(existingDirectory.asString(), nonExistingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).move(existingDirectory.resolvedAgainstRoot(), nonExistingDirectory.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
 		}
 		
 		@Test
-		public void testRenameMovesDirectoryToEmptyExistingDirectory() {
-			// TODO
+		public void testRenameMovesDirectoryToEmptyExistingDirectory() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			MockedPath otherExistingDirectory = mockExistingDirectory();
+			when(nioAccess.list(otherExistingDirectory.resolvedAgainstRoot())).thenReturn(Stream.empty());
+			
+			FuseResult result = inTest.rename(existingDirectory.asString(), otherExistingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).move(existingDirectory.resolvedAgainstRoot(), otherExistingDirectory.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
 		}
 		
 		@Test
-		public void testRenameDoesNotMoveDirectoryToNonEmptyExistingDirectory() {
-			// TODO
+		public void testRenameDoesNotMoveDirectoryToNonEmptyExistingDirectory() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			MockedPath otherExistingDirectory = mockExistingDirectory();
+			when(nioAccess.list(otherExistingDirectory.resolvedAgainstRoot())).thenReturn(Stream.of((Path)null));
+			
+			FuseResult result = inTest.rename(existingDirectory.asString(), otherExistingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.DIRECTORY_NOT_EMPTY));
 		}
 		
 		@Test
-		public void testRenameDoesNotMoveDirectoryToExistingFile() {
-			// TODO
+		public void testRenameDoesNotMoveDirectoryToExistingFile() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			MockedPath existingFile = mockExistingFile();
+			
+			FuseResult result = inTest.rename(existingDirectory.asString(), existingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.IS_DIRECTORY));
 		}
 		
 		@Test
-		public void testRenameDoesNotMoveFileToExistingDirectory() {
-			// TODO
+		public void testRenameDoesNotMoveFileToExistingDirectory() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			MockedPath existingFile = mockExistingFile();
+			
+			FuseResult result = inTest.rename(existingFile.asString(), existingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.IS_NO_DIRECTORY));
 		}
 		
 		@Test
-		public void testRenameDoesNotMoveIfParentOfTargetDoesNotExist() {
-			// TODO
+		public void testRenameDoesNotMoveIfSourceDoesNotExist() throws IOException {
+			MockedPath nonExistingDirectory = mockNonExistingPath();
+			MockedPath existingDirectory = mockExistingDirectory();
+			
+			FuseResult result = inTest.rename(nonExistingDirectory.asString(), existingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
+		}
+		
+		@Test
+		public void testRenameDoesNotMoveIfParentOfTargetDoesNotExist() throws IOException {
+			MockedPath existingDirectory = mockExistingFile();
+			MockedPath nonExistingParent = mockNonExistingPath();
+			MockedPath pathWithNonExistingParent = mockNonExistingPathWithParent(nonExistingParent.resolvedAgainstRoot());
+			
+			FuseResult result = inTest.rename(existingDirectory.asString(), pathWithNonExistingParent.asString());
+			
+			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
 		}
 
 		@Test
-		public void testRenameDoesNotMoveDirectoryInsideItself() {
-			// TODO
+		public void testRenameDoesNotMoveDirectoryInsideItself() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			MockedPath subDirectory = mockNonExistingPath();
+			when(subDirectory.resolvedAgainstRoot().startsWith(existingDirectory.resolvedAgainstRoot())).thenReturn(true);
+			
+			FuseResult result = inTest.rename(existingDirectory.asString(), subDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.ILLEGAL_ARGUMENTS));
 		}
 		
 	}
@@ -473,22 +697,64 @@ public class NioFuseOperationsTest {
 		
 		@Test
 		public void testRmdirFailsForFile() {
-			// TODO
+			MockedPath existingFile = mockExistingFile();
+			
+			FuseResult result = inTest.rmdir(existingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.IS_NO_DIRECTORY));
 		}
 		
 		@Test
 		public void testRmdirFailsForNonExistingDirectory() {
-			// TODO
+			MockedPath nonExistingFile = mockNonExistingPath();
+			
+			FuseResult result = inTest.rmdir(nonExistingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
 		}
 		
 		@Test
-		public void testRmdirFailsForNonEmpty() {
-			// TODO
+		public void testRmdirFailsForNonEmptyDirectory() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			Path irrelevant = null;
+			when(nioAccess.list(existingDirectory.resolvedAgainstRoot())).thenReturn(Stream.of(irrelevant));
+			
+			FuseResult result = inTest.rmdir(existingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.DIRECTORY_NOT_EMPTY));
 		}
 		
 		@Test
-		public void testRmdirSucceedsForEmptyDirectory() {
-			// TODO
+		public void testRmdirSucceedsForEmptyDirectory() throws IOException {
+			MockedPath existingDirectory = mockExistingDirectory();
+			when(nioAccess.list(existingDirectory.resolvedAgainstRoot())).thenReturn(Stream.empty());
+			
+			FuseResult result = inTest.rmdir(existingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).delete(existingDirectory.resolvedAgainstRoot());
+		}
+		
+	}
+	
+	public class Statfs {
+		
+		@Test
+		public void testStatfsReportsCorrectSize() throws IOException {
+			String irrelevant = null;
+			long usedBytes = 18728;
+			long availableBytes = 47882;
+			FileStore fileStore = mock(FileStore.class);
+			when(nioAccess.getFileStore(root)).thenReturn(fileStore);
+			FilesystemStats stats = mock(FilesystemStats.class);
+			when(fileStore.getTotalSpace()).thenReturn(usedBytes+availableBytes);
+			when(fileStore.getUnallocatedSpace()).thenReturn(availableBytes);
+			
+			FuseResult result = inTest.statfs(irrelevant, stats);
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(stats).available(availableBytes);
+			verify(stats).used(usedBytes);
 		}
 		
 	}
@@ -497,17 +763,63 @@ public class NioFuseOperationsTest {
 		
 		@Test
 		public void testUnlinkFailsForDirectory() {
-			// TODO
+			MockedPath existingDirectory = mockExistingDirectory();
+			
+			FuseResult result = inTest.unlink(existingDirectory.asString());
+			
+			assertThat(result, is(StandardFuseResult.IS_DIRECTORY));
 		}
 		
 		@Test
 		public void testUnlinkFailsForNonExistingFile() {
-			// TODO
+			MockedPath nonExistingFile = mockNonExistingPath();
+			
+			FuseResult result = inTest.unlink(nonExistingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
+			
 		}
 		
 		@Test
-		public void testUnlinkSucceedsForFile() {
-			// TODO
+		public void testUnlinkSucceedsForFile() throws IOException {
+			MockedPath existingFile = mockExistingFile();
+			
+			FuseResult result = inTest.unlink(existingFile.asString());
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(nioAccess).delete(existingFile.resolvedAgainstRoot());
+		}
+		
+	}
+	
+	public class Utimens {
+		
+		@Test
+		public void testUtimensFailsForNonExistingFile() {
+			MockedPath nonExistingPath = mockNonExistingPath();
+			Times times = mock(Times.class);
+			
+			FuseResult result = inTest.utimens(nonExistingPath.asString(), times);
+			
+			assertThat(result, is(StandardFuseResult.FILE_DOES_NOT_EXIST));
+		}
+		
+		@Test
+		public void testUnlinkSetsFileTimesOfExistingEntry() throws IOException {
+			MockedPath existingPath = mockExistingPath();
+			Times times = mock(Times.class);
+			BasicFileAttributes fileAttributes = mock(BasicFileAttributes.class);
+			when(nioAccess.readAttributes(existingPath.resolvedAgainstRoot(), BasicFileAttributes.class)).thenReturn(fileAttributes);
+			long expectedLastAccessTime = 37271;
+			long expectedLastModifiedTime = 16312;
+			when(fileAttributes.lastAccessTime()).thenReturn(FileTime.fromMillis(expectedLastAccessTime));
+			when(fileAttributes.lastModifiedTime()).thenReturn(FileTime.fromMillis(expectedLastModifiedTime));
+			
+			FuseResult result = inTest.utimens(existingPath.asString(), times);
+			
+			assertThat(result, is(StandardFuseResult.SUCCESS));
+			verify(times).accessTime(expectedLastAccessTime);
+			verify(times).modificationTime(expectedLastModifiedTime);
 		}
 		
 	}
@@ -539,6 +851,26 @@ public class NioFuseOperationsTest {
 		
 	}
 	
+	public MockedPath mockExistingFile() {
+		String name = UUID.randomUUID().toString();
+		Path path = mock(Path.class);
+		when(path.getParent()).thenReturn(root);
+		when(root.resolve(name)).thenReturn(path);
+		when(nioAccess.exists(path)).thenReturn(true);
+		when(nioAccess.isRegularFile(path)).thenReturn(true);
+		return new MockedPath(name, path);
+	}
+	
+	public MockedPath mockExistingDirectory() {
+		String name = UUID.randomUUID().toString();
+		Path path = mock(Path.class);
+		when(path.getParent()).thenReturn(root);
+		when(root.resolve(name)).thenReturn(path);
+		when(nioAccess.exists(path)).thenReturn(true);
+		when(nioAccess.isDirectory(path)).thenReturn(true);
+		return new MockedPath(name, path);
+	}
+	
 	public MockedPath mockExistingPath() {
 		String name = UUID.randomUUID().toString();
 		Path path = mock(Path.class);
@@ -548,8 +880,13 @@ public class NioFuseOperationsTest {
 	}
 	
 	public MockedPath mockNonExistingPath() {
+		return mockNonExistingPathWithParent(root);
+	}
+	
+	public MockedPath mockNonExistingPathWithParent(Path parent) {
 		String name = UUID.randomUUID().toString();
 		Path path = mock(Path.class);
+		when(path.getParent()).thenReturn(parent);
 		when(root.resolve(name)).thenReturn(path);
 		when(nioAccess.exists(path)).thenReturn(false);
 		return new MockedPath(name, path);

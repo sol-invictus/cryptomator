@@ -1,9 +1,11 @@
 package org.cryptomator.frontend.fuse.impl;
 
+import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.util.Arrays.copyOf;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -124,7 +126,7 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 
 	@Override
 	public FuseResult statfs(String path, FilesystemStats stats) {
-		return log("statfs(%s,*)", () -> delegate.statfs(path, stats), path, stats);
+		return log("statfs(%s,*)", () -> delegate.statfs(path, stats), path);
 	}
 
 	@Override
@@ -158,7 +160,7 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 	private FuseResult logWithData(String message, Supplier<FuseResult> operation, ByteBuffer buffer, Object... args) {
 		if (logData) {
 			FuseResult result = operation.get();
-			fuseLogger.debug(format(messageWithResult(message) + " data:" + toString(buffer.asReadOnlyBuffer()), argsWithResult(args, result)));
+			fuseLogger.debug(format(messageWithResult(message) + " " + toString(buffer.asReadOnlyBuffer()), argsWithResult(args, result)));
 			return result;
 		} else {
 			return log(message, operation, args);
@@ -173,9 +175,13 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 
 	private String toString(ByteBuffer filledBuffer) {
 		filledBuffer.flip();
-		byte[] bytes = new byte[filledBuffer.limit()];
+		byte[] bytes = new byte[min(filledBuffer.limit(), 32)];
 		filledBuffer.get(bytes);
-		return bytesToHex(bytes);
+		if (filledBuffer.remaining() > 0) {
+			return format("data:%s... ascii:%s...", bytesToHex(bytes), new String(bytes, Charset.forName("ASCII")));
+		} else {
+			return format("data:%s ascii:%s", bytesToHex(bytes), new String(bytes, Charset.forName("ASCII")));
+		}
 	}
 
 	private String messageWithResult(String message) {

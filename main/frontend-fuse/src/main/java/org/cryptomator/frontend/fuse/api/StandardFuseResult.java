@@ -7,8 +7,13 @@ public enum StandardFuseResult implements FuseResult {
 	IO_ERROR(-ErrorCodes.EIO()), //
 	FILE_DOES_NOT_EXIST(-ErrorCodes.ENOENT()), //
 	FILE_EXISTS(-ErrorCodes.EEXIST()), //
+	IS_DIRECTORY(-ErrorCodes.EISDIR()), //
+	IS_NO_DIRECTORY(-ErrorCodes.ENOTDIR()), //
+	DIRECTORY_NOT_EMPTY(-ErrorCodes.ENOTEMPTY()), //
 	INVALID_FILE_HANDLE(-ErrorCodes.EBADF()), //
-	UNSUPPORTED_OPERATION(-ErrorCodes.ENODEV()) //
+	ILLEGAL_ARGUMENTS(-ErrorCodes.EINVAL()), //
+	UNSUPPORTED_OPERATION(-ErrorCodes.ENODEV()), //
+	CAN_NOT_GROW_FILE_THROUGH_TRUNCATE(-ErrorCodes.EPERM()) //
 
 	;
 

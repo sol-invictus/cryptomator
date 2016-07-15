@@ -28,6 +28,7 @@ class FuseFrontend implements Frontend {
 	@Override
 	public void mount(Map<MountParam, Optional<String>> map) throws CommandFailedException {
 		try {
+			// TODO
 			Path mountLocation = Paths.get("C:/Users/markus/Documents/cryptomator/test");
 			if (!isDirectory(mountLocation) && !isRegularFile(mountLocation)) {
 				deleteIfExists(mountLocation);

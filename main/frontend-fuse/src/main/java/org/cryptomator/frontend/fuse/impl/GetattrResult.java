@@ -13,13 +13,6 @@ class GetattrResult {
 	private final long modificationTime;
 	private final long fileSize;
 	
-	public GetattrResult() {
-		accessTime = System.currentTimeMillis();
-		creationTime = System.currentTimeMillis();
-		modificationTime = System.currentTimeMillis();
-		fileSize = PATH_IS_FOLDER;
-	}
-	
 	public GetattrResult(BasicFileAttributes fileAttributes) {
 		if (fileAttributes.isRegularFile()) {
 			fileSize = fileAttributes.size();

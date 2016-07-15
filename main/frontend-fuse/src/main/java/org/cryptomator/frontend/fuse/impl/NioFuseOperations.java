@@ -1,7 +1,12 @@
 package org.cryptomator.frontend.fuse.impl;
 
+import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static org.cryptomator.frontend.fuse.api.StandardFuseResult.DIRECTORY_NOT_EMPTY;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.FILE_DOES_NOT_EXIST;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.FILE_EXISTS;
+import static org.cryptomator.frontend.fuse.api.StandardFuseResult.IS_DIRECTORY;
+import static org.cryptomator.frontend.fuse.api.StandardFuseResult.IS_NO_DIRECTORY;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.INVALID_FILE_HANDLE;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.SUCCESS;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.UNSUPPORTED_OPERATION;
@@ -9,12 +14,14 @@ import static org.cryptomator.frontend.fuse.api.StandardFuseResult.UNSUPPORTED_O
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileStore;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.cryptomator.common.SupplierThrowingException;
 import org.cryptomator.frontend.fuse.api.Attributes;
 import org.cryptomator.frontend.fuse.api.FileHandle;
 import org.cryptomator.frontend.fuse.api.FilesystemStats;
@@ -167,32 +174,107 @@ class NioFuseOperations implements FuseOperations {
 
 	@Override
 	public FuseResult rename(String path, String newPath) {
-		return StandardFuseResult.IO_ERROR; // TODO
+		Path from = resolve(path);
+		Path to = resolve(newPath);
+		return wrapIoExceptions(()-> {
+			if (to.startsWith(from)) {
+				return StandardFuseResult.ILLEGAL_ARGUMENTS;
+			}
+			if (!nioAccess.exists(from) || !nioAccess.exists(to.getParent())) {
+				return StandardFuseResult.FILE_DOES_NOT_EXIST;
+			}
+			if (nioAccess.isDirectory(to)) {
+				if (!nioAccess.isDirectory(from)) {
+					return StandardFuseResult.IS_NO_DIRECTORY;
+				}
+				if (nioAccess.list(to).count() > 0) {
+					return StandardFuseResult.DIRECTORY_NOT_EMPTY;
+				}
+			} else if (nioAccess.isRegularFile(to)) {
+				if (!nioAccess.isRegularFile(from)) {
+					return StandardFuseResult.IS_DIRECTORY;
+				}
+			}
+			nioAccess.move(from, to, REPLACE_EXISTING);
+			return StandardFuseResult.SUCCESS;
+		});
 	}
 
 	@Override
 	public FuseResult rmdir(String path) {
-		return StandardFuseResult.IO_ERROR; // TODO
+		Path resolved = resolve(path);
+		if (nioAccess.isDirectory(resolved)) {
+			return wrapIoExceptions(() -> {
+				if (nioAccess.list(resolved).count() > 0) {
+					return DIRECTORY_NOT_EMPTY;
+				}
+				nioAccess.delete(resolved);
+				return SUCCESS;
+			});
+		} else if (nioAccess.exists(resolved)) {
+			return IS_NO_DIRECTORY;
+		} else {
+			return FILE_DOES_NOT_EXIST;
+		}
 	}
 
 	@Override
 	public FuseResult statfs(String path, FilesystemStats stats) {
-		return StandardFuseResult.IO_ERROR; // TODO
+		return wrapIoExceptions(() -> {
+			FileStore fileStore = nioAccess.getFileStore(root);
+			long total = fileStore.getTotalSpace();
+			long free = fileStore.getUnallocatedSpace();
+			stats.available(free);
+			stats.used(total - free);
+			return SUCCESS;
+		});
 	}
 
 	@Override
 	public FuseResult truncate(String path, long offset) {
-		return StandardFuseResult.IO_ERROR; // TODO
+		Path resolved = resolve(path);
+		if (!nioAccess.exists(resolved)) {
+			return FILE_DOES_NOT_EXIST;
+		}
+		OpenFile openFile = openFiles.open(resolved);
+		FuseResult result;
+		try {
+			result = openFile.truncate(offset);
+		} finally {
+			openFile.release();
+		}
+		return result;
 	}
 
 	@Override
 	public FuseResult unlink(String path) {
-		return StandardFuseResult.IO_ERROR; // TODO
+		Path resolved = resolve(path);
+		if (nioAccess.isRegularFile(resolved)) {
+			return wrapIoExceptions(() -> {
+				nioAccess.delete(resolved);
+				return SUCCESS;
+			});
+		} else {
+			if (nioAccess.exists(resolved)) {
+				return IS_DIRECTORY;
+			} else {
+				return FILE_DOES_NOT_EXIST; 
+			}
+		}
 	}
 
 	@Override
 	public FuseResult utimens(String path, Times times) {
-		return StandardFuseResult.IO_ERROR; // TODO
+		Path resolved = resolve(path);
+		if (!nioAccess.exists(resolved)) {
+			return FILE_DOES_NOT_EXIST;
+		}
+		return wrapIoExceptions(() -> {
+			BasicFileAttributes attributes = nioAccess.readAttributes(resolved, BasicFileAttributes.class);
+			times.accessTime(attributes.lastAccessTime().toMillis());
+			times.modificationTime(attributes.lastModifiedTime().toMillis());
+			return SUCCESS;
+		});
 	}
 
 	@Override
@@ -234,13 +316,6 @@ class NioFuseOperations implements FuseOperations {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
-	}
-	
-	@FunctionalInterface
-	private interface SupplierThrowingException<ResultType,ErrorType extends Throwable> {
-		
-		ResultType get() throws ErrorType;
-		
 	}
 
 }

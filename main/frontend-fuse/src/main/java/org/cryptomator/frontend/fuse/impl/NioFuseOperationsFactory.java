@@ -7,31 +7,22 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import javax.inject.Inject;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 
-import org.cryptomator.frontend.fuse.FuseLogger;
 import org.cryptomator.frontend.fuse.api.FuseOperations;
-import org.slf4j.Logger;
 
 @Singleton
 public class NioFuseOperationsFactory {
 
-	private final Provider<OpenFiles> openFilesProvider;
-	private final Logger fuseLogger;
-	private final NioAccess nioAccess;
-	private final GetattrCacheFactory getattrCacheFactory;
+	private final FuseOperationsFactory factory;
 	
 	@Inject
-	NioFuseOperationsFactory(Provider<OpenFiles> openFilesProvider, NioAccess nioAccess, @FuseLogger Logger fuseLogger, GetattrCacheFactory getattrCacheFactory) {
-		this.openFilesProvider = openFilesProvider;
-		this.fuseLogger = fuseLogger;
-		this.getattrCacheFactory = getattrCacheFactory;
-		this.nioAccess = nioAccess;
+	NioFuseOperationsFactory(FuseOperationsFactory factory) {
+		this.factory = factory;
 	}
 	
 	public FuseOperations create(Path root, Flag ... flags) {
-		FuseOperations nioFuseOperations = new NioFuseOperations(root, nioAccess, openFilesProvider.get(), getattrCacheFactory);
+		FuseOperations nioFuseOperations = factory.newNioFuseOperations(root);
 		return decorate(nioFuseOperations, asSet(flags));
 	}
 
@@ -46,7 +37,7 @@ public class NioFuseOperationsFactory {
 	}
 
 	private ExceptionHandlingFuseOperationsDecorator decorateWithExceptionHandling(FuseOperations operations) {
-		return new ExceptionHandlingFuseOperationsDecorator(operations, fuseLogger);
+		return factory.newExceptionHandlingFuseOperationsDecorator(operations);
 	}
 
 	private FuseOperations decorateWithDataLogging(FuseOperations operations) {
@@ -56,7 +47,7 @@ public class NioFuseOperationsFactory {
 	}
 
 	private LoggingFuseOperationsDecorator decorateWithOperationLogging(FuseOperations operations) {
-		return new LoggingFuseOperationsDecorator(operations, fuseLogger);
+		return factory.newLoggingFuseOperationsDecorator(operations);
 	}
 
 	private Set<Flag> asSet(Flag... flags) {

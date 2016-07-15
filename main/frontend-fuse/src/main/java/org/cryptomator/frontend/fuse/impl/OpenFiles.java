@@ -21,21 +21,28 @@ class OpenFiles {
 
 	private final AtomicLong nextHandle = new AtomicLong(1);
 	private final ConcurrentMap<Long,OpenFile> openFiles = new ConcurrentHashMap<>();
+	private final OpenFileFactory openFileFactory;
 	
 	@Inject
-	public OpenFiles() {}
+	public OpenFiles(OpenFileFactory openFileFactory) {
+		this.openFileFactory = openFileFactory;
+	}
 	
 	public FuseResult open(Path path, WritableFileHandle fileHandleConsumer) {
 		long handle = nextHandle.getAndIncrement();
-		openFiles.put(handle, new OpenFile(path));
+		openFiles.put(handle, open(path));
 		fileHandleConsumer.accept(handle);
 		return SUCCESS;
+	}
+	
+	public OpenFile open(Path path) {
+		return openFileFactory.newOpenFile(path);
 	}
 
 	public FuseResult release(Path path, FileHandle fileHandle) {
 		Optional<OpenFile> openFile = get(path, fileHandle);
 		if (openFile.isPresent()) {
-			openFiles.remove(fileHandle);
+			openFiles.remove(fileHandle.getAsLong());
 			openFile.get().release();
 			return SUCCESS;
 		} else {

@@ -266,7 +266,7 @@ public class ExceptionHandlingFuseOperationsDecorator implements FuseOperations 
 		} else if (fuseLogger.isInfoEnabled()) {
 			fuseLogger.info("Error during " + operation + " operation", e);
 		} else {
-			fuseLogger.error("Error during {} operation: {}", operation, e.getMessage());
+			fuseLogger.error("Error during " + operation + " operation: " + e.getMessage());
 		}
 	}
 	
@@ -282,7 +282,7 @@ public class ExceptionHandlingFuseOperationsDecorator implements FuseOperations 
 		if (e == null) {
 			return false;
 		}
-		if (type.isInstance(e.getClass())) {
+		if (type.isInstance(e)) {
 			return true;
 		}
 		return containsCause(e.getCause(), type);

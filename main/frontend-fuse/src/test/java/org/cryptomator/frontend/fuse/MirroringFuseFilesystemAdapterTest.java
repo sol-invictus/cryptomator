@@ -19,7 +19,7 @@ public class MirroringFuseFilesystemAdapterTest {
 		}
 		
 		FuseFrontendFactory frontendFactory = DaggerFuseFrontendComponent.create().fuseFrontendFactory();
-		Frontend frontend = frontendFactory.create(Paths.get(args[0]));
+		Frontend frontend = frontendFactory.create(Paths.get(args[0]), LOG_DATA);
 		
 		frontend.mount(emptyMap());
 		System.out.println(format("Mirroring %s", args[0]));
