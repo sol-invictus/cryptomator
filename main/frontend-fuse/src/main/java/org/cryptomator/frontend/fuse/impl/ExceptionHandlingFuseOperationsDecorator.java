@@ -39,9 +39,9 @@ public class ExceptionHandlingFuseOperationsDecorator implements FuseOperations 
 	}
 
 	@Override
-	public FuseResult create(String path) {
+	public FuseResult create(String path, WritableFileHandle fileHandleConsumer) {
 		try {
-			return delegate.create(path);
+			return delegate.create(path, fileHandleConsumer);
 		} catch (Throwable e) {
 			log("create", e);
 			return errorCodeFor(e);

@@ -2,10 +2,10 @@ package org.cryptomator.frontend.fuse.impl;
 
 import static java.lang.Math.min;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.Arrays.copyOf;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -15,6 +15,8 @@ import org.cryptomator.frontend.fuse.api.FileHandle;
 import org.cryptomator.frontend.fuse.api.FilesystemStats;
 import org.cryptomator.frontend.fuse.api.FuseOperations;
 import org.cryptomator.frontend.fuse.api.FuseResult;
+import org.cryptomator.frontend.fuse.api.ReadWriteFileHandle;
+import org.cryptomator.frontend.fuse.api.StandardFuseResult;
 import org.cryptomator.frontend.fuse.api.Times;
 import org.cryptomator.frontend.fuse.api.WritableFileHandle;
 import org.slf4j.Logger;
@@ -24,10 +26,15 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 	private final Logger fuseLogger;
 	private final FuseOperations delegate;
 	private volatile boolean logData;
+	private volatile boolean logSuccess = true;
 
 	public LoggingFuseOperationsDecorator(FuseOperations delegate, Logger fuseLogger) {
 		this.delegate = delegate;
 		this.fuseLogger = fuseLogger;
+	}
+	
+	public void setLogSuccess(boolean logData) {
+		this.logData = logData;
 	}
 	
 	public void setLogData(boolean logData) {
@@ -40,8 +47,8 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 	}
 
 	@Override
-	public FuseResult create(String path) {
-		return log("create(%s)", () -> delegate.create(path), path);
+	public FuseResult create(String path, WritableFileHandle originalFileHandleConsumer) {
+		return logWithHandle("create(%s)", fileHandleConsumer -> delegate.create(path, fileHandleConsumer), originalFileHandleConsumer, path);
 	}
 
 	@Override
@@ -71,7 +78,8 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 
 	@Override
 	public FuseResult getattr(String path, Attributes attributes) {
-		return log("getattr(%s,*)", () -> delegate.getattr(path, attributes), path);
+		// return log("getattr(%s,*)", () -> delegate.getattr(path, attributes), path);
+		return delegate.getattr(path, attributes);
 	}
 
 	@Override
@@ -150,17 +158,21 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 	}
 
 	private FuseResult logWithHandle(String message, Function<WritableFileHandle, FuseResult> operation, WritableFileHandle originalFileHandleConsumer, Object... args) {
-		ReadableWritableFileHandle fileHandleConsumer = new ReadableWritableFileHandle();
+		ReadWriteFileHandle fileHandleConsumer = new ReadWriteFileHandle();
 		FuseResult result = operation.apply(fileHandleConsumer);
-		originalFileHandleConsumer.accept(fileHandleConsumer.getValue());
-		fuseLogger.debug(format(messageWithResult(message) + " handle:" + fileHandleConsumer.getValue(), argsWithResult(args, result)));
+		originalFileHandleConsumer.accept(fileHandleConsumer.getAsLong());
+		if (result != StandardFuseResult.SUCCESS || logSuccess) {
+			fuseLogger.debug(format(messageWithResult(message) + " handle:" + fileHandleConsumer.getAsLong(), argsWithResult(args, result)));
+		}
 		return result;
 	}
 
 	private FuseResult logWithData(String message, Supplier<FuseResult> operation, ByteBuffer buffer, Object... args) {
 		if (logData) {
 			FuseResult result = operation.get();
-			fuseLogger.debug(format(messageWithResult(message) + " " + toString(buffer.asReadOnlyBuffer()), argsWithResult(args, result)));
+			if (result != StandardFuseResult.SUCCESS || logSuccess) {
+				fuseLogger.debug(format(messageWithResult(message), argsWithResult(args, result))  + " " + toString(buffer.asReadOnlyBuffer()));
+			}
 			return result;
 		} else {
 			return log(message, operation, args);
@@ -169,7 +181,9 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 
 	private FuseResult log(String message, Supplier<FuseResult> operation, Object... args) {
 		FuseResult result = operation.get();
-		fuseLogger.debug(format(messageWithResult(message), argsWithResult(args, result)));
+		if (result != StandardFuseResult.SUCCESS || logSuccess) {
+			fuseLogger.debug(format(messageWithResult(message), argsWithResult(args, result)));
+		}
 		return result;
 	}
 
@@ -178,10 +192,14 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 		byte[] bytes = new byte[min(filledBuffer.limit(), 32)];
 		filledBuffer.get(bytes);
 		if (filledBuffer.remaining() > 0) {
-			return format("data:%s... ascii:%s...", bytesToHex(bytes), new String(bytes, Charset.forName("ASCII")));
+			return format("data:%s... ascii:%s...", bytesToHex(bytes), decodeAscii(bytes));
 		} else {
-			return format("data:%s ascii:%s", bytesToHex(bytes), new String(bytes, Charset.forName("ASCII")));
+			return format("data:%s ascii:%s", bytesToHex(bytes), decodeAscii(bytes));
 		}
+	}
+
+	private String decodeAscii(byte[] bytes) {
+		return US_ASCII.decode(ByteBuffer.wrap(bytes)).toString();
 	}
 
 	private String messageWithResult(String message) {
@@ -204,21 +222,6 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 			hexChars[j * 2 + 1] = hexArray[v & 0x0F];
 		}
 		return new String(hexChars);
-	}
-
-	private static class ReadableWritableFileHandle implements WritableFileHandle {
-
-		private long value = -1;
-
-		@Override
-		public void accept(long value) {
-			this.value = value;
-		}
-
-		public long getValue() {
-			return value;
-		}
-
 	}
 
 }

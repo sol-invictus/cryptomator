@@ -7,5 +7,7 @@ interface GetattrCache {
 	GetattrResult reload(Path path);
 	
 	GetattrResult get(Path path);
+
+	void evict(Path path);
 	
 }

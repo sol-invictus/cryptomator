@@ -10,6 +10,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.verify;
@@ -32,6 +33,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.InOrder;
 
 public class OpenFileTest {
 
@@ -233,13 +235,14 @@ public class OpenFileTest {
 	}
 	
 	@Test
-	public void testTruncateReturnsCanNotGrowFileThroughTruncateIfSizeSmallerOffset() throws IOException {
+	public void testTruncateCanGrowFileBeyondCurrentSize() throws IOException {
 		long size = 34882;
 		when(channel.size()).thenReturn(size);
 		
 		FuseResult result = inTest.truncate(size + 100);
 		
-		assertThat(result, is(StandardFuseResult.CAN_NOT_GROW_FILE_THROUGH_TRUNCATE));
+		assertThat(result, is(StandardFuseResult.SUCCESS));
+		// TODO verify channel usage
 	}
 	
 	@Test

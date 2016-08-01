@@ -84,7 +84,7 @@ class OpenFile {
 	public FuseResult truncate(long offset) {
 		return wrapIoExceptions(() -> {
 			if (channel.size() < offset) {
-				return CAN_NOT_GROW_FILE_THROUGH_TRUNCATE;
+				channel.write(ByteBuffer.allocate(1), offset);
 			}
 			channel.truncate(offset);
 			return SUCCESS;

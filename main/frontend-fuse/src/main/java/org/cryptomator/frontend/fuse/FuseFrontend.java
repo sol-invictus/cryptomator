@@ -4,6 +4,7 @@ import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.isRegularFile;
+import static org.cryptomator.frontend.Frontend.MountParam.MOUNT_NAME;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -28,8 +29,7 @@ class FuseFrontend implements Frontend {
 	@Override
 	public void mount(Map<MountParam, Optional<String>> map) throws CommandFailedException {
 		try {
-			// TODO
-			Path mountLocation = Paths.get("C:/Users/markus/Documents/cryptomator/test");
+			Path mountLocation = Paths.get(map.get(MOUNT_NAME).get());
 			if (!isDirectory(mountLocation) && !isRegularFile(mountLocation)) {
 				deleteIfExists(mountLocation);
 				createDirectories(mountLocation);

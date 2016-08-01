@@ -1,6 +1,5 @@
 package org.cryptomator.frontend.fuse.impl;
 
-import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Arrays.stream;
 import static org.hamcrest.Matchers.is;
@@ -116,8 +115,9 @@ public class NioFuseOperationsTest {
 		@Test
 		public void testCreateDoesNotCreateFileIfItAlreadyExists() throws IOException {
 			MockedPath existingPath = mockExistingPath();
+			WritableFileHandle fileHandle = mock(WritableFileHandle.class);
 			
-			FuseResult result = inTest.create(existingPath.asString());
+			FuseResult result = inTest.create(existingPath.asString(), fileHandle);
 			
 			assertThat(result, is(StandardFuseResult.FILE_EXISTS));
 			verify(nioAccess, never()).createFile(any());
@@ -126,10 +126,13 @@ public class NioFuseOperationsTest {
 		@Test
 		public void testCreateCreatesFileIfItDoesNotExist() throws IOException {
 			MockedPath nonExistingPath = mockNonExistingPath();
+			WritableFileHandle fileHandle = mock(WritableFileHandle.class);
+			FuseResult expectedResult = mock(FuseResult.class);
+			when(openFiles.open(nonExistingPath.resolvedAgainstRoot(), fileHandle)).thenReturn(expectedResult);
 			
-			FuseResult result = inTest.create(nonExistingPath.asString());
+			FuseResult result = inTest.create(nonExistingPath.asString(), fileHandle);
 			
-			assertThat(result, is(StandardFuseResult.SUCCESS));
+			assertThat(result, is(expectedResult));
 			verify(nioAccess).createFile(nonExistingPath.resolvedAgainstRoot());
 		}
 		
@@ -140,11 +143,12 @@ public class NioFuseOperationsTest {
 			when(root.resolve(pathAsString)).thenReturn(path);
 			IOException exception = new IOException();
 			doThrow(exception).when(nioAccess).createFile(path);
+			WritableFileHandle fileHandle = mock(WritableFileHandle.class);
 			
 			thrown.expect(UncheckedIOException.class);
 			thrown.expectCause(is(exception));
 			
-			inTest.create(pathAsString);
+			inTest.create(pathAsString, fileHandle);
 		}
 		
 	}
@@ -591,7 +595,7 @@ public class NioFuseOperationsTest {
 			FuseResult result = inTest.rename(existingFile.asString(), nonExistingFile.asString());
 			
 			assertThat(result, is(StandardFuseResult.SUCCESS));
-			verify(nioAccess).move(existingFile.resolvedAgainstRoot(), nonExistingFile.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
+			verify(nioAccess).move(existingFile.resolvedAgainstRoot(), nonExistingFile.resolvedAgainstRoot(), REPLACE_EXISTING);
 		}
 		
 		@Test
@@ -602,7 +606,7 @@ public class NioFuseOperationsTest {
 			FuseResult result = inTest.rename(existingFile.asString(), otherExistingFile.asString());
 			
 			assertThat(result, is(StandardFuseResult.SUCCESS));
-			verify(nioAccess).move(existingFile.resolvedAgainstRoot(), otherExistingFile.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
+			verify(nioAccess).move(existingFile.resolvedAgainstRoot(), otherExistingFile.resolvedAgainstRoot(), REPLACE_EXISTING);
 		}
 		
 		@Test
@@ -613,7 +617,7 @@ public class NioFuseOperationsTest {
 			FuseResult result = inTest.rename(existingDirectory.asString(), nonExistingDirectory.asString());
 			
 			assertThat(result, is(StandardFuseResult.SUCCESS));
-			verify(nioAccess).move(existingDirectory.resolvedAgainstRoot(), nonExistingDirectory.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
+			verify(nioAccess).move(existingDirectory.resolvedAgainstRoot(), nonExistingDirectory.resolvedAgainstRoot(), REPLACE_EXISTING);
 		}
 		
 		@Test
@@ -625,7 +629,7 @@ public class NioFuseOperationsTest {
 			FuseResult result = inTest.rename(existingDirectory.asString(), otherExistingDirectory.asString());
 			
 			assertThat(result, is(StandardFuseResult.SUCCESS));
-			verify(nioAccess).move(existingDirectory.resolvedAgainstRoot(), otherExistingDirectory.resolvedAgainstRoot(), REPLACE_EXISTING, COPY_ATTRIBUTES);
+			verify(nioAccess).move(existingDirectory.resolvedAgainstRoot(), otherExistingDirectory.resolvedAgainstRoot(), REPLACE_EXISTING);
 		}
 		
 		@Test

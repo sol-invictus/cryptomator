@@ -43,6 +43,11 @@ class GetattrCacheFactory {
 		}
 
 		@Override
+		public void evict(Path path) {
+			delegate.invalidate(path);
+		}
+
+		@Override
 		public GetattrResult reload(Path path) {
 			delegate.invalidate(path);
 			return get(path);

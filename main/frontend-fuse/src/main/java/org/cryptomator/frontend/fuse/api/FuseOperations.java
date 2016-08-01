@@ -12,7 +12,7 @@ public interface FuseOperations {
 
 	FuseResult access(String path);
 
-	FuseResult create(String path);
+	FuseResult create(String path, WritableFileHandle fileHandleConsumer);
 
 	FuseResult fgetattr(String path, Attributes attributes, FileHandle fileHandle);
 

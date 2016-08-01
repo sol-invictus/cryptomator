@@ -67,7 +67,7 @@ public class FuseFilesystemToFuseJnaAdapter extends net.fusejna.FuseFilesystem {
 
 	@Override
 	public int create(String path, ModeWrapper mode, FileInfoWrapper info) {
-		return operations.create(path).getAsInt();
+		return operations.create(path, info::fh).getAsInt();
 	}
 
 	@Override

@@ -34,7 +34,7 @@ class FuseOperationInvoker {
 	
 	public static final Collection<FuseOperationInvoker> ALL = unmodifiableCollection(asList(
 			new FuseOperationInvoker(operations -> operations.access(A_STRING), "access"),
-			new FuseOperationInvoker(operations -> operations.create(A_STRING), "create"),
+			new FuseOperationInvoker(operations -> operations.create(A_STRING, A_WRITABLE_FILE_HANDLE), "create"),
 			new FuseOperationInvoker(operations -> operations.fgetattr(A_STRING, AN_ATTRIBUTES, A_FILE_HANDLE), "fgetattr"),
 			new FuseOperationInvoker(operations -> operations.flush(A_STRING, A_FILE_HANDLE), "flush"),
 			new FuseOperationInvoker(operations -> operations.fsync(A_STRING, A_BOOLEAN, A_FILE_HANDLE), "fsync"),

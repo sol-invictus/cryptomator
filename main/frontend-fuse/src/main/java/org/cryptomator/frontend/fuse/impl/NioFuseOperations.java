@@ -1,13 +1,12 @@
 package org.cryptomator.frontend.fuse.impl;
 
-import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.DIRECTORY_NOT_EMPTY;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.FILE_DOES_NOT_EXIST;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.FILE_EXISTS;
+import static org.cryptomator.frontend.fuse.api.StandardFuseResult.INVALID_FILE_HANDLE;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.IS_DIRECTORY;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.IS_NO_DIRECTORY;
-import static org.cryptomator.frontend.fuse.api.StandardFuseResult.INVALID_FILE_HANDLE;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.SUCCESS;
 import static org.cryptomator.frontend.fuse.api.StandardFuseResult.UNSUPPORTED_OPERATION;
 
@@ -56,14 +55,15 @@ class NioFuseOperations implements FuseOperations {
 	}
 
 	@Override
-	public FuseResult create(String path) {
+	public FuseResult create(String path, WritableFileHandle fileHandleConsumer) {
 		Path resolved = resolve(path);
 		if (nioAccess.exists(resolved)) {
 			return FILE_EXISTS;
 		} else {
 			return wrapIoExceptions(() -> {
 				nioAccess.createFile(resolved);
-				return SUCCESS;
+				getattrCache.evict(resolved);
+				return openFiles.open(resolved, fileHandleConsumer);
 			});
 		}
 	}
@@ -78,12 +78,20 @@ class NioFuseOperations implements FuseOperations {
 
 	@Override
 	public FuseResult flush(String path, FileHandle fileHandle) {
-		return openFile(path, fileHandle).apply(OpenFile::flush);
+		try {
+			return openFile(path, fileHandle).apply(OpenFile::flush);
+		} finally {
+			getattrCache.evict(resolve(path));
+		}
 	}
 
 	@Override
 	public FuseResult fsync(String path, boolean flushMetadata, FileHandle fileHandle) {
-		return openFile(path, fileHandle).apply(openFile -> openFile.fsync(flushMetadata));
+		try {
+			return openFile(path, fileHandle).apply(openFile -> openFile.fsync(flushMetadata));
+		} finally {
+			getattrCache.evict(resolve(path));
+		}
 	}
 
 	@Override
@@ -119,6 +127,7 @@ class NioFuseOperations implements FuseOperations {
 		} else {
 			return wrapIoExceptions(() -> {
 				nioAccess.createDirectory(resolved);
+				getattrCache.evict(resolved);
 				return SUCCESS;
 			});
 		}
@@ -160,7 +169,11 @@ class NioFuseOperations implements FuseOperations {
 
 	@Override
 	public FuseResult release(String path, FileHandle fileHandle) {
-		return openFiles.release(resolve(path), fileHandle);
+		try {
+			return openFiles.release(resolve(path), fileHandle);
+		} finally {
+			getattrCache.evict(resolve(path));
+		}
 	}
 
 	@Override
@@ -196,6 +209,8 @@ class NioFuseOperations implements FuseOperations {
 				}
 			}
 			nioAccess.move(from, to, REPLACE_EXISTING);
+			getattrCache.evict(from);
+			getattrCache.evict(to);
 			return StandardFuseResult.SUCCESS;
 		});
 	}
@@ -209,6 +224,7 @@ class NioFuseOperations implements FuseOperations {
 					return DIRECTORY_NOT_EMPTY;
 				}
 				nioAccess.delete(resolved);
+				getattrCache.evict(resolved);
 				return SUCCESS;
 			});
 		} else if (nioAccess.exists(resolved)) {
