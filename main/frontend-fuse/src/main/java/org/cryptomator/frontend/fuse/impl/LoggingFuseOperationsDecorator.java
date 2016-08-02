@@ -78,8 +78,7 @@ public class LoggingFuseOperationsDecorator implements FuseOperations {
 
 	@Override
 	public FuseResult getattr(String path, Attributes attributes) {
-		// return log("getattr(%s,*)", () -> delegate.getattr(path, attributes), path);
-		return delegate.getattr(path, attributes);
+		return log("getattr(%s,*)", () -> delegate.getattr(path, attributes), path);
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package org.cryptomator.frontend.fuse.impl;
 
+import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -15,6 +16,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import org.cryptomator.frontend.fuse.api.FileHandle;
@@ -34,8 +37,10 @@ import org.slf4j.Logger;
 @RunWith(Theories.class)
 public class LoggingFuseOperationsDecoratorTest {
 	
-	private static final Predicate<FuseOperationInvoker> ALL_EXCEPT_OPEN_AND_OPENDIR = invoker -> {
-		return !invoker.operationName().equals("open") && !invoker.operationName().equals("opendir");
+	private static final Set<String> NAMES_OF_OPERATIONS_WITH_FILE_HANDLE = new HashSet<>(asList("open","opendir","create"));
+	
+	private static final Predicate<FuseOperationInvoker> ALL_EXCEPT_OPERATINS_WITH_FILE_HANDLE = invoker -> {
+		return !NAMES_OF_OPERATIONS_WITH_FILE_HANDLE.contains(invoker.operationName());
 	};
 
 	private FuseOperations delegate = mock(FuseOperations.class);
@@ -45,7 +50,7 @@ public class LoggingFuseOperationsDecoratorTest {
 	private LoggingFuseOperationsDecorator inTest = new LoggingFuseOperationsDecorator(delegate, logger);
 	
 	@DataPoints
-	public static Iterable<FuseOperationInvoker> INVOKERS = FuseOperationInvoker.ALL.stream().filter(ALL_EXCEPT_OPEN_AND_OPENDIR).collect(toList());
+	public static Iterable<FuseOperationInvoker> INVOKERS = FuseOperationInvoker.ALL.stream().filter(ALL_EXCEPT_OPERATINS_WITH_FILE_HANDLE).collect(toList());
 	
 	@After
 	public void tearDown() {
@@ -61,6 +66,24 @@ public class LoggingFuseOperationsDecoratorTest {
 		
 		assertThat(result, is(expectedResult));
 		verify(logger).debug(argThat(containsString(invoker.operationName())));
+	}
+	
+	@Test
+	public void testCreateDelegatesToDelegate() {
+		String aString = "fooBar";
+		long handle = 47382;
+		FuseResult expectedResult = mock(FuseResult.class);
+		WritableFileHandle writableHandle = mock(WritableFileHandle.class);
+		when(delegate.create(eq(aString), any())).thenAnswer(invocation -> {
+			invocation.getArgumentAt(1, WritableFileHandle.class).accept(handle);
+			return expectedResult;
+		});
+		
+		FuseResult result = inTest.create(aString, writableHandle);
+		
+		assertThat(result, is(expectedResult));
+		verify(writableHandle).accept(handle);
+		verify(logger).debug(argThat(containsString("create")));
 	}
 	
 	@Test
