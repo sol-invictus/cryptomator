@@ -23,6 +23,7 @@ upgrade.version3dropBundleExtension.err.alreadyExists = 自動轉移失敗。\n"
 # unlock.fxml
 unlock.label.password = 密碼
 unlock.label.mountName = 磁碟名稱
+# Fuzzy
 unlock.label.winDriveLetter = 磁碟代號
 unlock.label.downloadsPageLink = 所有的 Cryptomator 版本
 unlock.label.advancedHeading = 進階選項
@@ -33,7 +34,6 @@ unlock.choicebox.winDriveLetter.auto = 自動指定
 unlock.errorMessage.wrongPassword = 錯誤的密碼
 unlock.errorMessage.unsupportedVersion.vaultOlderThanSoftware = 不支援的檔案庫。這個檔案庫是由舊版本的 Cryptomator 所建立的。
 unlock.errorMessage.unsupportedVersion.softwareOlderThanVault = 不支援的檔案庫。這個檔案庫是由新版本的 Cryptomator 所建立的。
-unlock.messageLabel.startServerFailed = 啟動 WebDAV 伺服器失敗。
 # change_password.fxml
 changePassword.label.oldPassword = 舊密碼
 changePassword.label.newPassword = 新密碼
@@ -45,7 +45,6 @@ changePassword.errorMessage.decryptionFailed = 解密失敗
 # unlocked.fxml
 unlocked.button.lock = 鎖住檔案庫
 unlocked.moreOptions.reveal = 打開磁碟
-unlocked.moreOptions.copyUrl = 複製 WebDAV 網址
 unlocked.label.revealFailed = 指令錯誤
 unlocked.label.unmountFailed = 插入磁碟錯誤
 unlocked.label.statsEncrypted = 加密的
@@ -54,9 +53,6 @@ unlocked.ioGraph.yAxis.label = 傳輸量 (MiB/s)
 # settings.fxml
 settings.version.label = 版本 %s
 settings.checkForUpdates.label = 檢查更新
-settings.port.label = WebDAV 埠號 *
-settings.port.prompt = 0 \= 自動選擇
-settings.requiresRestartLabel = * Cryptomator 需要更新 
 # tray icon
 tray.menu.open = 打開
 tray.menu.quit = 離開
@@ -74,33 +70,59 @@ main.directoryList.remove.confirmation.header = 你真的想要移除這個檔�
 main.directoryList.remove.confirmation.content = 這個檔案庫只會從清單中移除。如果要永久刪除，請從檔案系統中刪除。
 upgrade.version3to4.msg = 這個檔案庫需要被轉移到新的格式。\n加密的資料夾名稱將會被更新。\n在進行之前，請確認同步已完成。
 upgrade.version3to4.err.io = 由於 I/O 的例外，轉移失敗。取得詳細資訊，請查看日誌檔。
-settings.prefGvfsScheme.label = WebDAV 格式
 # upgrade.fxml
 upgrade.confirmation.label = 是的，請確認同步已完成。
 unlock.label.savePassword = 儲存密碼
 unlock.errorMessage.unauthenticVersionMac = 無法認證消息驗證碼版本。
-unlocked.label.mountFailed = 連線到磁碟失敗
 unlock.savePassword.delete.confirmation.title = 刪除儲存的密碼
 unlock.savePassword.delete.confirmation.header = 你真的想要刪除這個檔案庫的儲存密碼？
 unlock.savePassword.delete.confirmation.content = 此檔案庫的儲存密碼會被立即從系統的鑰匙圈中刪除。如果你想再次儲存密碼，必須在解鎖檔案庫時，開啟「儲存密碼」。
-settings.debugMode.label = 除錯模式 *
+settings.debugMode.label = 除錯模式
 upgrade.version3dropBundleExtension.title = 檔案庫版本 3 升級（Drop Bundle 套件）
 upgrade.version3to4.title = 檔案庫版本 3 到 4 升級
 upgrade.version4to5.title = 檔案庫版本 4 到 5 升級
 upgrade.version4to5.msg = 這個檔案庫需要被遷移到新的格式。\n加密的檔案將會被更新。\n在處理前，請確保同步已經完成。\n\n註記：所有檔案的更改日期將會被變更為目前處理的日期/時間。
 upgrade.version4to5.err.io = 由於 I/O 異常導致遷移失敗。詳細請見日誌檔。
-settings.port.apply = 套用
-unlock.label.mountAfterUnlock = 掛載磁碟
 unlock.label.revealAfterMount = 打開磁碟
 unlocked.lock.force.confirmation.title = %1$s 鎖定失敗
 unlocked.lock.force.confirmation.header = 你想要強制鎖定？
 unlocked.lock.force.confirmation.content = 這可能是因為其他軟體仍在存取這個檔案庫，或者發生其他問題。\n\n仍然在存取檔案的軟體可能無法正常運作，而且會造成寫入的資料遺失。
 unlock.label.unlockAfterStartup = 啟動時，自動解鎖（實驗中）
 unlock.errorMessage.unlockFailed = 解鎖失敗。詳請查看日誌檔。
-unlocked.moreOptions.mount = 掛載硬碟
-unlocked.moreOptions.unmount = 退出硬碟
 upgrade.version5toX.title = 檔案庫版本升級
 upgrade.version5toX.msg = 這個檔案庫需要轉移到新的格式。\n進行前，請確認已經完成所有同步。
-main.createVault.nonEmptyDir.title = Creating vault failed
-main.createVault.nonEmptyDir.header = Chosen directory is not empty
+main.createVault.nonEmptyDir.title = 建立vault時發生錯誤
+main.createVault.nonEmptyDir.header = 選擇的資料夾並不是空的
 main.createVault.nonEmptyDir.content = The selected directory already contains files (possibly hidden). A vault can only be created in an empty directory.
+settings.webdav.port.label = WebDAV Port
+settings.webdav.port.prompt = 0 \= 自動選擇
+settings.webdav.port.apply = 套用
+settings.webdav.prefGvfsScheme.label = WebDAV Scheme
+settings.volume.label = Preferred Volume Type
+settings.volume.webdav = WebDAV
+settings.volume.fuse = FUSE
+unlock.successLabel.vaultCreated = 成功建立vault
+unlock.successLabel.passwordChanged = 密碼變更成功
+unlock.successLabel.upgraded = Cryptomator成功的更新了
+# Fuzzy
+unlock.label.useOwnMountPath = 自訂掛載點
+welcome.askForUpdateCheck.dialog.title = Update check
+welcome.askForUpdateCheck.dialog.header = Enable the integrated update check?
+welcome.askForUpdateCheck.dialog.content = Recommended\: Enable the update check to always be sure you have the newest version of Cryptomator, with all security patches, installed.\n\nYou can change this from within the settings at any time.
+settings.volume.dokany = Dokany
+main.gracefulShutdown.dialog.title = Locking vault(s) failed
+main.gracefulShutdown.dialog.header = Vault(s) in use
+main.gracefulShutdown.dialog.content = One or more vaults are still in use by other programs. Please close them to allow Cryptomator to shut down properly, then try again.\n\nIf this doesn't work, Cryptomator can shut down forcefully, but this can incur data loss and is not recommended.
+main.gracefulShutdown.button.tryAgain = Try Again
+main.gracefulShutdown.button.forceShutdown = Force Shutdown
+unlock.pendingMessage.unlocking = Unlocking vault...
+unlock.failedDialog.title = Unlock failed
+unlock.failedDialog.header = Unlock failed
+unlock.failedDialog.content.mountPathNonExisting = Mount point does not exist.
+unlock.failedDialog.content.mountPathNotEmpty = Mount point is not empty.
+unlock.label.useReadOnlyMode = Read-Only
+unlock.label.chooseMountPath = Choose empty directory…
+ctrl.secPasswordField.nonPrintableChars = Password contains control characters.\nRecommendation\: Remove them to ensure compatibility with other clients.
+ctrl.secPasswordField.capsLocked = Caps Lock is activated.
+unlock.label.useCustomMountFlags = Custom Mount Flags
+unlock.choicebox.winDriveLetter.occupied = occupied

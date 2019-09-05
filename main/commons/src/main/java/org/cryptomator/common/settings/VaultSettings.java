@@ -5,16 +5,7 @@
  *******************************************************************************/
 package org.cryptomator.common.settings;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.util.Base64;
-import java.util.Objects;
-import java.util.UUID;
-
-import org.apache.commons.lang3.StringUtils;
-import org.fxmisc.easybind.EasyBind;
-
+import com.google.common.base.Strings;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -22,20 +13,40 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import org.apache.commons.lang3.StringUtils;
+import org.fxmisc.easybind.EasyBind;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * The settings specific to a single vault.
+ * TODO: Change the name of individualMountPath and its derivatives to customMountPath
+ */
 public class VaultSettings {
 
 	public static final boolean DEFAULT_UNLOCK_AFTER_STARTUP = false;
-	public static final boolean DEFAULT_MOUNT_AFTER_UNLOCK = true;
 	public static final boolean DEFAULT_REAVEAL_AFTER_MOUNT = true;
+	public static final boolean DEFAULT_USES_INDIVIDUAL_MOUNTPATH = false;
+	public static final boolean DEFAULT_USES_READONLY_MODE = false;
+	public static final String DEFAULT_MOUNT_FLAGS = "";
 
 	private final String id;
-	private final ObjectProperty<Path> path = new SimpleObjectProperty<>();
+	private final ObjectProperty<Path> path = new SimpleObjectProperty();
 	private final StringProperty mountName = new SimpleStringProperty();
 	private final StringProperty winDriveLetter = new SimpleStringProperty();
 	private final BooleanProperty unlockAfterStartup = new SimpleBooleanProperty(DEFAULT_UNLOCK_AFTER_STARTUP);
-	private final BooleanProperty mountAfterUnlock = new SimpleBooleanProperty(DEFAULT_MOUNT_AFTER_UNLOCK);
 	private final BooleanProperty revealAfterMount = new SimpleBooleanProperty(DEFAULT_REAVEAL_AFTER_MOUNT);
+	private final BooleanProperty usesIndividualMountPath = new SimpleBooleanProperty(DEFAULT_USES_INDIVIDUAL_MOUNTPATH);
+	private final StringProperty individualMountPath = new SimpleStringProperty();
+	private final BooleanProperty usesReadOnlyMode = new SimpleBooleanProperty(DEFAULT_USES_READONLY_MODE);
+	private final StringProperty mountFlags = new SimpleStringProperty(DEFAULT_MOUNT_FLAGS);
 
 	public VaultSettings(String id) {
 		this.id = Objects.requireNonNull(id);
@@ -44,7 +55,7 @@ public class VaultSettings {
 	}
 
 	Observable[] observables() {
-		return new Observable[] {path, mountName, winDriveLetter, unlockAfterStartup, mountAfterUnlock, revealAfterMount};
+		return new Observable[]{path, mountName, winDriveLetter, unlockAfterStartup, revealAfterMount, usesIndividualMountPath, individualMountPath, usesReadOnlyMode, mountFlags};
 	}
 
 	private void deriveMountNameFromPath(Path path) {
@@ -115,12 +126,32 @@ public class VaultSettings {
 		return unlockAfterStartup;
 	}
 
-	public BooleanProperty mountAfterUnlock() {
-		return mountAfterUnlock;
-	}
-
 	public BooleanProperty revealAfterMount() {
 		return revealAfterMount;
+	}
+
+	public BooleanProperty usesIndividualMountPath() {
+		return usesIndividualMountPath;
+	}
+
+	public StringProperty individualMountPath() {
+		return individualMountPath;
+	}
+
+	public Optional<String> getIndividualMountPath() {
+		if (usesIndividualMountPath.get()) {
+			return Optional.ofNullable(Strings.emptyToNull(individualMountPath.get()));
+		} else {
+			return Optional.empty();
+		}
+	}
+
+	public BooleanProperty usesReadOnlyMode() {
+		return usesReadOnlyMode;
+	}
+
+	public StringProperty mountFlags() {
+		return mountFlags;
 	}
 
 	/* Hashcode/Equals */

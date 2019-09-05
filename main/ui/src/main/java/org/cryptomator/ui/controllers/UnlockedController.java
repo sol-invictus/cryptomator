@@ -2,35 +2,15 @@
  * Copyright (c) 2014, 2017 Sebastian Stenzel
  * All rights reserved.
  * This program and the accompanying materials are made available under the terms of the accompanying LICENSE file.
- * 
+ *
  * Contributors:
  *     Sebastian Stenzel - initial API and implementation
  ******************************************************************************/
 package org.cryptomator.ui.controllers;
 
-import static java.lang.String.format;
-
-import java.io.IOException;
-import java.util.Optional;
-
-import javax.inject.Inject;
-
-import org.cryptomator.frontend.webdav.ServerLifecycleException;
-import org.cryptomator.frontend.webdav.mount.Mounter.CommandFailedException;
-import org.cryptomator.ui.l10n.Localization;
-import org.cryptomator.ui.model.Vault;
-import org.cryptomator.ui.util.AsyncTaskService;
-import org.cryptomator.ui.util.DialogBuilderUtil;
-import org.fxmisc.easybind.EasyBind;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.util.concurrent.Runnables;
-
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
@@ -46,25 +26,34 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.VBox;
 import javafx.stage.PopupWindow.AnchorLocation;
 import javafx.util.Duration;
+import org.cryptomator.ui.l10n.Localization;
+import org.cryptomator.ui.model.Vault;
+import org.cryptomator.ui.util.DialogBuilderUtil;
+import org.cryptomator.ui.util.Tasks;
+import org.fxmisc.easybind.EasyBind;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.inject.Inject;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+
+import static java.lang.String.format;
 
 public class UnlockedController implements ViewController {
 
 	private static final Logger LOG = LoggerFactory.getLogger(UnlockedController.class);
 
 	private static final int IO_SAMPLING_STEPS = 100;
-	private static final double IO_SAMPLING_INTERVAL = 0.25;
+	private static final double IO_SAMPLING_INTERVAL = 0.5;
 
 	private final Localization localization;
-	private final AsyncTaskService asyncTaskService;
+	private final ExecutorService executor;
 	private final ObjectProperty<Vault> vault = new SimpleObjectProperty<>();
-	private final ObjectExpression<Vault.State> vaultState = ObjectExpression.objectExpression(EasyBind.select(vault).selectObject(Vault::stateProperty));
 	private Optional<LockListener> listener = Optional.empty();
 	private Timeline ioAnimation;
 
@@ -84,29 +73,16 @@ public class UnlockedController implements ViewController {
 	private ContextMenu moreOptionsMenu;
 
 	@FXML
-	private MenuItem mountVaultMenuItem;
-
-	@FXML
-	private MenuItem unmountVaultMenuItem;
-
-	@FXML
-	private MenuItem revealVaultMenuItem;
-
-	@FXML
 	private VBox root;
 
 	@Inject
-	public UnlockedController(Localization localization, AsyncTaskService asyncTaskService) {
+	public UnlockedController(Localization localization, ExecutorService executor) {
 		this.localization = localization;
-		this.asyncTaskService = asyncTaskService;
+		this.executor = executor;
 	}
 
 	@Override
 	public void initialize() {
-		mountVaultMenuItem.disableProperty().bind(vaultState.isEqualTo(Vault.State.UNLOCKED).not()); // enable when unlocked
-		unmountVaultMenuItem.disableProperty().bind(vaultState.isEqualTo(Vault.State.MOUNTED).not()); // enable when mounted
-		revealVaultMenuItem.disableProperty().bind(vaultState.isEqualTo(Vault.State.MOUNTED).not()); // enable when mounted
-
 		EasyBind.subscribe(vault, this::vaultChanged);
 		EasyBind.subscribe(moreOptionsMenu.showingProperty(), moreOptionsButton::setSelected);
 	}
@@ -121,86 +97,29 @@ public class UnlockedController implements ViewController {
 			return;
 		}
 
-		if (newVault.getState() == Vault.State.UNLOCKED && newVault.getVaultSettings().mountAfterUnlock().get()) {
-			mountVault(newVault);
-		}
-
 		// (re)start throughput statistics:
 		stopIoSampling();
 		startIoSampling();
 	}
 
 	@FXML
-	private void didClickLockVault(ActionEvent event) {
-		regularUnmountVault(this::lockVault);
+	private void didClickLockVault() {
+		regularLockVault(this::lockVaultSucceeded);
 	}
 
-	private void lockVault() {
-		try {
-			vault.get().lock();
-		} catch (ServerLifecycleException | IOException e) {
-			LOG.error("Lock failed", e);
-		}
+	private void lockVaultSucceeded() {
 		listener.ifPresent(listener -> listener.didLock(this));
 	}
 
-	@FXML
-	private void didClickMoreOptions(ActionEvent event) {
-		if (moreOptionsMenu.isShowing()) {
-			moreOptionsMenu.hide();
-		} else {
-			moreOptionsMenu.setAnchorLocation(AnchorLocation.CONTENT_TOP_RIGHT);
-			moreOptionsMenu.show(moreOptionsButton, Side.BOTTOM, moreOptionsButton.getWidth(), 0.0);
-		}
-	}
-
-	@FXML
-	public void didClickMountVault(ActionEvent event) {
-		mountVault(vault.get());
-	}
-
-	private void mountVault(Vault vault) {
-		asyncTaskService.asyncTaskOf(() -> {
-			vault.mount();
-		}).onSuccess(() -> {
-			LOG.trace("Mount succeeded.");
-			messageLabel.setText(null);
-			if (vault.getVaultSettings().revealAfterMount().get()) {
-				revealVault(vault);
-			}
-		}).onError(CommandFailedException.class, e -> {
-			LOG.error("Mount failed.", e);
-			// TODO Markus Kreusch #393: hyperlink auf FAQ oder sowas?
-			messageLabel.setText(localization.getString("unlocked.label.mountFailed"));
-		}).run();
-	}
-
-	@FXML
-	public void didClickUnmountVault(ActionEvent event) {
-		regularUnmountVault(Runnables.doNothing());
-	}
-
-	private void regularUnmountVault(Runnable onSuccess) {
-		asyncTaskService.asyncTaskOf(() -> {
-			vault.get().unmount();
+	private void regularLockVault(Runnable onSuccess) {
+		Tasks.create(() -> {
+			vault.get().lock(false);
 		}).onSuccess(() -> {
 			LOG.trace("Regular unmount succeeded.");
 			onSuccess.run();
 		}).onError(Exception.class, e -> {
 			onRegularUnmountVaultFailed(e, onSuccess);
-		}).run();
-	}
-
-	private void forcedUnmountVault(Runnable onSuccess) {
-		asyncTaskService.asyncTaskOf(() -> {
-			vault.get().unmountForced();
-		}).onSuccess(() -> {
-			LOG.trace("Forced unmount succeeded.");
-			onSuccess.run();
-		}).onError(Exception.class, e -> {
-			LOG.error("Forced unmount failed.", e);
-			messageLabel.setText(localization.getString("unlocked.label.unmountFailed"));
-		}).run();
+		}).runOnce(executor);
 	}
 
 	private void onRegularUnmountVaultFailed(Exception e, Runnable onSuccess) {
@@ -214,7 +133,7 @@ public class UnlockedController implements ViewController {
 
 			Optional<ButtonType> choice = confirmDialog.showAndWait();
 			if (ButtonType.YES.equals(choice.get())) {
-				forcedUnmountVault(onSuccess);
+				forcedLockVault(onSuccess);
 			} else {
 				LOG.trace("Unmount cancelled.", e);
 			}
@@ -224,29 +143,43 @@ public class UnlockedController implements ViewController {
 		}
 	}
 
+	private void forcedLockVault(Runnable onSuccess) {
+		Tasks.create(() -> {
+			vault.get().lock(true);
+		}).onSuccess(() -> {
+			LOG.trace("Forced unmount succeeded.");
+			onSuccess.run();
+		}).onError(Exception.class, e -> {
+			LOG.error("Forced unmount failed.", e);
+			messageLabel.setText(localization.getString("unlocked.label.unmountFailed"));
+		}).runOnce(executor);
+	}
+
 	@FXML
-	private void didClickRevealVault(ActionEvent event) {
+	private void didClickMoreOptions() {
+		if (moreOptionsMenu.isShowing()) {
+			moreOptionsMenu.hide();
+		} else {
+			moreOptionsMenu.setAnchorLocation(AnchorLocation.CONTENT_TOP_RIGHT);
+			moreOptionsMenu.show(moreOptionsButton, Side.BOTTOM, moreOptionsButton.getWidth(), 0.0);
+		}
+	}
+
+	@FXML
+	private void didClickRevealVault() {
 		revealVault(vault.get());
 	}
 
-	private void revealVault(Vault vault) {
-		asyncTaskService.asyncTaskOf(() -> {
+	void revealVault(Vault vault) {
+		Tasks.create(() -> {
 			vault.reveal();
 		}).onSuccess(() -> {
 			LOG.trace("Reveal succeeded.");
 			messageLabel.setText(null);
-		}).onError(CommandFailedException.class, e -> {
+		}).onError(Exception.class, e -> {
 			LOG.error("Reveal failed.", e);
 			messageLabel.setText(localization.getString("unlocked.label.revealFailed"));
-		}).run();
-	}
-
-	@FXML
-	private void didClickCopyUrl(ActionEvent event) {
-		ClipboardContent clipboardContent = new ClipboardContent();
-		clipboardContent.putUrl(vault.get().getWebDavUrl());
-		clipboardContent.putString(vault.get().getWebDavUrl());
-		Clipboard.getSystemClipboard().setContent(clipboardContent);
+		}).runOnce(executor);
 	}
 
 	// ****************************************
@@ -278,43 +211,42 @@ public class UnlockedController implements ViewController {
 	private class IoSamplingAnimationHandler implements EventHandler<ActionEvent> {
 
 		private static final double BYTES_TO_MEGABYTES_FACTOR = 1.0 / IO_SAMPLING_INTERVAL / 1024.0 / 1024.0;
-		private static final double SMOOTHING_FACTOR = 0.3;
-		private static final long EFFECTIVELY_ZERO = 100000; // 100kb
 		private final Series<Number, Number> decryptedBytes;
 		private final Series<Number, Number> encryptedBytes;
-		private int step = 0;
-		private long oldDecBytes = 0;
-		private long oldEncBytes = 0;
 
 		public IoSamplingAnimationHandler(Series<Number, Number> decryptedBytes, Series<Number, Number> encryptedBytes) {
 			this.decryptedBytes = decryptedBytes;
 			this.encryptedBytes = encryptedBytes;
+
+			// initialize data once and change value of datapoints later:
+			for (int i = 0; i < IO_SAMPLING_STEPS; i++) {
+				decryptedBytes.getData().add(new Data<>(i, 0));
+				encryptedBytes.getData().add(new Data<>(i, 0));
+			}
+
+			xAxis.setLowerBound(0);
+			xAxis.setUpperBound(IO_SAMPLING_STEPS);
 		}
 
 		@Override
 		public void handle(ActionEvent event) {
-			step++;
+			// move all values one step:
+			for (int i = 0; i < IO_SAMPLING_STEPS - 1; i++) {
+				int j = i + 1;
+				Number tmp = decryptedBytes.getData().get(j).getYValue();
+				decryptedBytes.getData().get(i).setYValue(tmp);
 
+				tmp = encryptedBytes.getData().get(j).getYValue();
+				encryptedBytes.getData().get(i).setYValue(tmp);
+			}
+
+			// add latest value:
 			final long decBytes = vault.get().pollBytesRead();
-			final double smoothedDecBytes = oldDecBytes + SMOOTHING_FACTOR * (decBytes - oldDecBytes);
-			final double smoothedDecMb = smoothedDecBytes * BYTES_TO_MEGABYTES_FACTOR;
-			oldDecBytes = smoothedDecBytes > EFFECTIVELY_ZERO ? (long) smoothedDecBytes : 0l;
-			decryptedBytes.getData().add(new Data<Number, Number>(step, smoothedDecMb));
-			if (decryptedBytes.getData().size() > IO_SAMPLING_STEPS) {
-				decryptedBytes.getData().remove(0);
-			}
-
+			final double decMb = decBytes * BYTES_TO_MEGABYTES_FACTOR;
 			final long encBytes = vault.get().pollBytesWritten();
-			final double smoothedEncBytes = oldEncBytes + SMOOTHING_FACTOR * (encBytes - oldEncBytes);
-			final double smoothedEncMb = smoothedEncBytes * BYTES_TO_MEGABYTES_FACTOR;
-			oldEncBytes = smoothedEncBytes > EFFECTIVELY_ZERO ? (long) smoothedEncBytes : 0l;
-			encryptedBytes.getData().add(new Data<Number, Number>(step, smoothedEncMb));
-			if (encryptedBytes.getData().size() > IO_SAMPLING_STEPS) {
-				encryptedBytes.getData().remove(0);
-			}
-
-			xAxis.setLowerBound(step - IO_SAMPLING_STEPS);
-			xAxis.setUpperBound(step);
+			final double encMb = encBytes * BYTES_TO_MEGABYTES_FACTOR;
+			decryptedBytes.getData().get(IO_SAMPLING_STEPS - 1).setYValue(decMb);
+			encryptedBytes.getData().get(IO_SAMPLING_STEPS - 1).setYValue(encMb);
 		}
 	}
 
@@ -336,6 +268,7 @@ public class UnlockedController implements ViewController {
 
 	@FunctionalInterface
 	interface LockListener {
+
 		void didLock(UnlockedController ctrl);
 	}
 

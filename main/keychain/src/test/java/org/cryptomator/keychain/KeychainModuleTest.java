@@ -5,18 +5,20 @@
  *******************************************************************************/
 package org.cryptomator.keychain;
 
-import java.util.Optional;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Assert;
-import org.junit.Test;
+import java.util.Optional;
 
 public class KeychainModuleTest {
 
 	@Test
-	public void testGetKeychain() {
-		Optional<KeychainAccess> keychainAccess = DaggerTestKeychainComponent.builder().jniModule(new TestJniModule()).keychainModule(new TestKeychainModule()).build().keychainAccess();
-		Assert.assertTrue(keychainAccess.isPresent());
-		Assert.assertTrue(keychainAccess.get() instanceof MapKeychainAccess);
+	public void testGetKeychain() throws KeychainAccessException {
+		Optional<KeychainAccess> keychainAccess = DaggerTestKeychainComponent.builder().keychainModule(new TestKeychainModule()).build().keychainAccess();
+		Assertions.assertTrue(keychainAccess.isPresent());
+		Assertions.assertTrue(keychainAccess.get() instanceof MapKeychainAccess);
+		keychainAccess.get().storePassphrase("test", "asd");
+		Assertions.assertArrayEquals("asd".toCharArray(), keychainAccess.get().loadPassphrase("test"));
 	}
 
 }

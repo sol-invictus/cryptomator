@@ -6,29 +6,45 @@
  *******************************************************************************/
 package org.cryptomator.launcher;
 
+import org.cryptomator.ui.model.AppLaunchEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import java.awt.Desktop;
+import java.awt.desktop.OpenFilesEvent;
 import java.io.File;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Stream;
 
-import org.cryptomator.ui.util.EawtApplicationWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+@Singleton
 class FileOpenRequestHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileOpenRequestHandler.class);
-	private final BlockingQueue<Path> fileOpenRequests;
+	private final BlockingQueue<AppLaunchEvent> launchEventQueue;
 
-	public FileOpenRequestHandler(BlockingQueue<Path> fileOpenRequests) {
-		this.fileOpenRequests = fileOpenRequests;
-		EawtApplicationWrapper.getApplication().ifPresent(app -> {
-			app.setOpenFileHandler(files -> {
-				files.stream().map(File::toPath).forEach(fileOpenRequests::add);
-			});
-		});
+	@Inject
+	public FileOpenRequestHandler(@Named("launchEventQueue") BlockingQueue<AppLaunchEvent> launchEventQueue) {
+		this.launchEventQueue = launchEventQueue;
+		try {
+			Desktop.getDesktop().setOpenFileHandler(this::openFiles);
+		} catch (UnsupportedOperationException e) {
+			LOG.info("Unable to setOpenFileHandler, probably not supported on this OS.");
+		}
+	}
+
+	private void openFiles(final OpenFilesEvent evt) {
+		Stream<Path> pathsToOpen = evt.getFiles().stream().map(File::toPath);
+		AppLaunchEvent launchEvent = new AppLaunchEvent(pathsToOpen);
+		tryToEnqueueFileOpenRequest(launchEvent);
 	}
 
 	public void handleLaunchArgs(String[] args) {
@@ -37,19 +53,22 @@ class FileOpenRequestHandler {
 
 	// visible for testing
 	void handleLaunchArgs(FileSystem fs, String[] args) {
-		for (String arg : args) {
+		Stream<Path> pathsToOpen = Arrays.stream(args).map(str -> {
 			try {
-				Path path = fs.getPath(arg);
-				tryToEnqueueFileOpenRequest(path);
+				return fs.getPath(str);
 			} catch (InvalidPathException e) {
-				LOG.trace("{} not a valid path", arg);
+				LOG.trace("Argument not a valid path: {}", str);
+				return null;
 			}
-		}
+		}).filter(Objects::nonNull);
+		AppLaunchEvent launchEvent = new AppLaunchEvent(pathsToOpen);
+		tryToEnqueueFileOpenRequest(launchEvent);
 	}
 
-	private void tryToEnqueueFileOpenRequest(Path path) {
-		if (!fileOpenRequests.offer(path)) {
-			LOG.warn("{} could not be enqueued for opening.", path);
+
+	private void tryToEnqueueFileOpenRequest(AppLaunchEvent launchEvent) {
+		if (!launchEventQueue.offer(launchEvent)) {
+			LOG.warn("Could not enqueue application launch event.", launchEvent);
 		}
 	}
 

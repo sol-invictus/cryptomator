@@ -8,21 +8,31 @@ package org.cryptomator.keychain;
 import java.util.Optional;
 import java.util.Set;
 
-import org.cryptomator.jni.JniModule;
-
 import com.google.common.collect.Sets;
-
 import dagger.Module;
 import dagger.Provides;
 import dagger.multibindings.ElementsIntoSet;
+import org.cryptomator.jni.JniFunctions;
+import org.cryptomator.jni.MacFunctions;
+import org.cryptomator.jni.WinFunctions;
 
-@Module(includes = {JniModule.class})
+@Module
 public class KeychainModule {
 
 	@Provides
+	Optional<MacFunctions> provideOptionalMacFunctions() {
+		return JniFunctions.macFunctions();
+	}
+
+	@Provides
+	Optional<WinFunctions> provideOptionalWinFunctions() {
+		return JniFunctions.winFunctions();
+	}
+
+	@Provides
 	@ElementsIntoSet
-	Set<KeychainAccessStrategy> provideKeychainAccessStrategies(MacSystemKeychainAccess macKeychain, WindowsProtectedKeychainAccess winKeychain) {
-		return Sets.newHashSet(macKeychain, winKeychain);
+	Set<KeychainAccessStrategy> provideKeychainAccessStrategies(MacSystemKeychainAccess macKeychain, WindowsProtectedKeychainAccess winKeychain, LinuxSecretServiceKeychainAccess linKeychain) {
+		return Sets.newHashSet(macKeychain, winKeychain, linKeychain);
 	}
 
 	@Provides

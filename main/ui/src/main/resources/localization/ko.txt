@@ -23,6 +23,7 @@ upgrade.version3dropBundleExtension.err.alreadyExists = 자동 마이그레이�
 # unlock.fxml
 unlock.label.password = 비밀번호
 unlock.label.mountName = 드라이브 이름
+# Fuzzy
 unlock.label.winDriveLetter = 드라이브 문자
 unlock.label.downloadsPageLink = 모든 Cryptomator 버전
 unlock.label.advancedHeading = 고급 옵션
@@ -33,7 +34,6 @@ unlock.choicebox.winDriveLetter.auto = 자동으로 할당
 unlock.errorMessage.wrongPassword = 잘못된 비밀번호
 unlock.errorMessage.unsupportedVersion.vaultOlderThanSoftware = 지원되지 않는 보관함. 이 보관함은 이전 버전의 Cryptomator에서 생성되었습니다.
 unlock.errorMessage.unsupportedVersion.softwareOlderThanVault = 지원되지 않는 보관함. 이 보관함은 상위 버전의 Cryptomator에서 생성되었습니다.
-unlock.messageLabel.startServerFailed = WedDAV 서버 시작 실패
 # change_password.fxml
 changePassword.label.oldPassword = 이전 비밀번호
 changePassword.label.newPassword = 새로운 비밀번호
@@ -45,7 +45,6 @@ changePassword.errorMessage.decryptionFailed = 암호화 해제 실패
 # unlocked.fxml
 unlocked.button.lock = 보관함 잠그기
 unlocked.moreOptions.reveal = 드라이브 표시
-unlocked.moreOptions.copyUrl = WebDAV 주소 복사
 unlocked.label.revealFailed = 명령 실패
 unlocked.label.unmountFailed = 드라이브 꺼내기 실패
 unlocked.label.statsEncrypted = 암호화
@@ -54,9 +53,6 @@ unlocked.ioGraph.yAxis.label = 처리량 (MiB/s)
 # settings.fxml
 settings.version.label = 버전 %s
 settings.checkForUpdates.label = 업데이트 확인
-settings.port.label = WebDAV 포트 *
-settings.port.prompt = 0 \= 자동으로 선택
-settings.requiresRestartLabel = * Cryptomator 재시작 필요
 # tray icon
 tray.menu.open = 열기
 tray.menu.quit = 종료
@@ -74,33 +70,59 @@ main.directoryList.remove.confirmation.header = 정말 이 보관함을 삭제�
 main.directoryList.remove.confirmation.content = 보관함이 목록에서만 제거되었습니다. 데이터를 완전히 제거하시려면, 사용자의 파일시스템이서 제거해 주시기 바랍니다.
 upgrade.version3to4.msg = 이 보관함은 새로운 형식으로 이전되어야 합니다. 암호화된 폴더 이름이 업데이트 될 것입니다. 진행하기 전에 동기화가 완료되었는지 확인하기 바랍니다.
 upgrade.version3to4.err.io = I/O 예외 문제로 마이그레이션이 실패하였습니다. 자세한 사항은 로그 파일을 확인하세요.
-settings.prefGvfsScheme.label = WebDAV 스키마
 # upgrade.fxml
 upgrade.confirmation.label = 네. 동기화가 완료되었음을 확인하였습니다.
 unlock.label.savePassword = 비밀번호 저장
 unlock.errorMessage.unauthenticVersionMac = 인증할 수 없는 버전의 MAC(Message Authentication Code)입니다
-unlocked.label.mountFailed = 드라이브 연결 실패
 unlock.savePassword.delete.confirmation.title = 저장된 비밀번호 삭제
 unlock.savePassword.delete.confirmation.header = 정말로 이 보관함의 저장된 비밀번호를 지우시겠습니까?
 unlock.savePassword.delete.confirmation.content = 이 보관함의 저장된 비밀번호는 당신의 시스템 키체인에서 즉시 삭제될 것입니다. 다시 비밀번호를 저장하고 싶으시다면, 보관함을 열 때 "비밀번호 저장" 옵션을 활성화해야 합니다
-settings.debugMode.label = 디버그 모드 *
+settings.debugMode.label = 디버그 모드
 upgrade.version3dropBundleExtension.title = 버전 3 보관함 업그레이드 (Drop Bundle Extension)
 upgrade.version3to4.title = 보관함 버전 3에서 4로 업그레이드
 upgrade.version4to5.title = 보관함 버전 4에서 5로 업그레이드
 upgrade.version4to5.msg = 이 보관함은 새로운 형식으로 이전되어야 합니다.\n암호화된 파일들은 업데이트 될 것입니다.\n진행하기 전에 동기화가 완료되었는지 확인해주세요.\n\n참고\: 모든 파일의  수정 날짜는 과정 진행 중에 현재 날짜/시간으로 바뀔 것입니다.
 upgrade.version4to5.err.io = I/O 예외에 의해 마이그레이션 실패. 자세한 사항은 로그 파일을 참조하세요.
-settings.port.apply = 적용
-unlock.label.mountAfterUnlock = 드라이브 마운트
 unlock.label.revealAfterMount = 드라이브 공개
 unlocked.lock.force.confirmation.title = %1$s 잠그기 실패
 unlocked.lock.force.confirmation.header = 강제로 잠그시겠습니까?
 unlocked.lock.force.confirmation.content = 이는 다른 프로그램이 보관함 내의 파일을 접근하고 있거나, 다른 문제가 발생했기 때문일 수 있습니다.\n\n파일을 접근하고 있는 프로그램이 제대로 동작하지 않을 수 있으며, 프로그램이 쓰지 않은 데이터는 손실될 수 있습니다.
 unlock.label.unlockAfterStartup = 시작 시 자동 잠금 해제 (실험적)
 unlock.errorMessage.unlockFailed = 잠금 해제 실패. 자세한 사항은 로그 파일을 참조하세요.
-unlocked.moreOptions.mount = 드라이브 마운트
-unlocked.moreOptions.unmount = 드라이브 꺼내기
 upgrade.version5toX.title = 보관함 버전 업그레이드
 upgrade.version5toX.msg = 이 보관함은 새로운 버전으로 이전되어야 합니다.\n진행하기 전에 동기화가 완료되었는지 확인해주세요.
-main.createVault.nonEmptyDir.title = Creating vault failed
-main.createVault.nonEmptyDir.header = Chosen directory is not empty
-main.createVault.nonEmptyDir.content = The selected directory already contains files (possibly hidden). A vault can only be created in an empty directory.
+main.createVault.nonEmptyDir.title = 보관함 생성 실패
+main.createVault.nonEmptyDir.header = 선택된 디렉토리가 비어있지 않습니다
+main.createVault.nonEmptyDir.content = 선택된 디렉토리가 이미 파일을 포함하고 있습니다 (숨겨져 있을 수도 있습니다). 보관함은 비어있는 디렉토리에만 생성할 수 있습니다.
+settings.webdav.port.label = WebDAV 포트
+settings.webdav.port.prompt = 0 \= 자동으로 선택
+settings.webdav.port.apply = 적용
+settings.webdav.prefGvfsScheme.label = WebDAV 스킴
+settings.volume.label = 마운트-방법
+settings.volume.webdav = WebDAV
+settings.volume.fuse = FUSE
+unlock.successLabel.vaultCreated = 보관함이 성공적으로 생성되었습니다.
+unlock.successLabel.passwordChanged = 비밀번호가 성공적으로 변경되었습니다.
+unlock.successLabel.upgraded = Cryptomator가 성공적으로 업그레이드 되었습니다.
+# Fuzzy
+unlock.label.useOwnMountPath = 커스텀 마운트 지점 사용
+welcome.askForUpdateCheck.dialog.title = 업데이트 확인
+welcome.askForUpdateCheck.dialog.header = 통합 업데이트 확인을 활성화 하겠습니까?
+welcome.askForUpdateCheck.dialog.content = 추천\: 모든 보안 패치가 적용된 최신 버전의 Cryptomator를 유지하기 위해 업데이트 확인을 활성화 하십시오.\n설정에서 언제든지 바꿀 수 있습니다.
+settings.volume.dokany = Dokany
+main.gracefulShutdown.dialog.title = 보관함 잠그기 실패
+main.gracefulShutdown.dialog.header = 보관함이 사용중입니다.
+main.gracefulShutdown.dialog.content = 하나 이상의 보관함을 다른 프로그램이 사용하고 있습니다. Cryptomator를 올바르게 종료하려면 프로그램을 먼저 종료하고 다시 시도해 주세요.
+main.gracefulShutdown.button.tryAgain = 다시 시도
+main.gracefulShutdown.button.forceShutdown = 강제 종료
+unlock.pendingMessage.unlocking = 보관함 여는 중
+unlock.failedDialog.title = 잠금 해제 실패
+unlock.failedDialog.header = 잠금 해제 실패
+unlock.failedDialog.content.mountPathNonExisting = 마운트 지점이 존재하지 않습니다.
+unlock.failedDialog.content.mountPathNotEmpty = 마운트 지점이 비어있지 않습니다.
+unlock.label.useReadOnlyMode = 읽기 전용
+unlock.label.chooseMountPath = 빈 디렉토리 선택
+ctrl.secPasswordField.nonPrintableChars = 패스워드에 특수문자가 포함되어 있습니다.\n권장사항 \: 다른 클라이언트와의 호환성을 보증하기 위해 해당하는 문자를 제거하시기 바랍니다.
+ctrl.secPasswordField.capsLocked = Caps Lock 키가 활성화 되어있습니다.
+unlock.label.useCustomMountFlags = Custom Mount Flags
+unlock.choicebox.winDriveLetter.occupied = occupied

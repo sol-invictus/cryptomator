@@ -8,25 +8,24 @@
  *******************************************************************************/
 package org.cryptomator.ui.util;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
-import org.cryptomator.ui.l10n.Localization;
-
 import com.google.common.base.Strings;
 import com.nulabinc.zxcvbn.Zxcvbn;
-
 import javafx.geometry.Insets;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
+import org.cryptomator.common.FxApplicationScoped;
+import org.cryptomator.ui.l10n.Localization;
 
-@Singleton
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
+
+@FxApplicationScoped
 public class PasswordStrengthUtil {
+
+	private static final int PW_TRUNC_LEN = 100; // truncate very long passwords, since zxcvbn memory and runtime depends vastly on the length
 
 	private final Zxcvbn zxcvbn;
 	private final List<String> sanitizedInputs;
@@ -43,10 +42,9 @@ public class PasswordStrengthUtil {
 	public int computeRate(String password) {
 		if (Strings.isNullOrEmpty(password)) {
 			return -1;
-		} else if (password.length() > 100) {
-			return 4; // assume this is strong. zxcvbn memory and runtime depends vastly on the password length
 		} else {
-			return zxcvbn.measure(password, sanitizedInputs).getScore();
+			int numCharsToRate = Math.min(PW_TRUNC_LEN, password.length());
+			return zxcvbn.measure(password.substring(0, numCharsToRate), sanitizedInputs).getScore();
 		}
 	}
 

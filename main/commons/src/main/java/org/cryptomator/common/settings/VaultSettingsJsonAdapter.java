@@ -5,14 +5,13 @@
  *******************************************************************************/
 package org.cryptomator.common.settings;
 
-import java.io.IOException;
-import java.nio.file.Paths;
-
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
+import java.io.IOException;
+import java.nio.file.Paths;
 
 class VaultSettingsJsonAdapter {
 
@@ -25,8 +24,11 @@ class VaultSettingsJsonAdapter {
 		out.name("mountName").value(value.mountName().get());
 		out.name("winDriveLetter").value(value.winDriveLetter().get());
 		out.name("unlockAfterStartup").value(value.unlockAfterStartup().get());
-		out.name("mountAfterUnlock").value(value.mountAfterUnlock().get());
 		out.name("revealAfterMount").value(value.revealAfterMount().get());
+		out.name("usesIndividualMountPath").value(value.usesIndividualMountPath().get());
+		out.name("individualMountPath").value(value.individualMountPath().get());
+		out.name("usesReadOnlyMode").value(value.usesReadOnlyMode().get());
+		out.name("mountFlags").value(value.mountFlags().get());
 		out.endObject();
 	}
 
@@ -34,39 +36,52 @@ class VaultSettingsJsonAdapter {
 		String id = null;
 		String path = null;
 		String mountName = null;
+		String individualMountPath = null;
 		String winDriveLetter = null;
 		boolean unlockAfterStartup = VaultSettings.DEFAULT_UNLOCK_AFTER_STARTUP;
-		boolean mountAfterUnlock = VaultSettings.DEFAULT_MOUNT_AFTER_UNLOCK;
 		boolean revealAfterMount = VaultSettings.DEFAULT_REAVEAL_AFTER_MOUNT;
+		boolean usesIndividualMountPath = VaultSettings.DEFAULT_USES_INDIVIDUAL_MOUNTPATH;
+		boolean usesReadOnlyMode = VaultSettings.DEFAULT_USES_READONLY_MODE;
+		String mountFlags = VaultSettings.DEFAULT_MOUNT_FLAGS;
 
 		in.beginObject();
 		while (in.hasNext()) {
 			String name = in.nextName();
 			switch (name) {
-			case "id":
-				id = in.nextString();
-				break;
-			case "path":
-				path = in.nextString();
-				break;
-			case "mountName":
-				mountName = in.nextString();
-				break;
-			case "winDriveLetter":
-				winDriveLetter = in.nextString();
-				break;
-			case "unlockAfterStartup":
-				unlockAfterStartup = in.nextBoolean();
-				break;
-			case "mountAfterUnlock":
-				mountAfterUnlock = in.nextBoolean();
-				break;
-			case "revealAfterMount":
-				revealAfterMount = in.nextBoolean();
-				break;
-			default:
-				LOG.warn("Unsupported vault setting found in JSON: " + name);
-				in.skipValue();
+				case "id":
+					id = in.nextString();
+					break;
+				case "path":
+					path = in.nextString();
+					break;
+				case "mountName":
+					mountName = in.nextString();
+					break;
+				case "winDriveLetter":
+					winDriveLetter = in.nextString();
+					break;
+				case "unlockAfterStartup":
+					unlockAfterStartup = in.nextBoolean();
+					break;
+				case "revealAfterMount":
+					revealAfterMount = in.nextBoolean();
+					break;
+				case "usesIndividualMountPath":
+					usesIndividualMountPath = in.nextBoolean();
+					break;
+				case "individualMountPath":
+					individualMountPath = in.nextString();
+					break;
+				case "usesReadOnlyMode":
+					usesReadOnlyMode = in.nextBoolean();
+					break;
+				case "mountFlags":
+					mountFlags = in.nextString();
+					break;
+				default:
+					LOG.warn("Unsupported vault setting found in JSON: " + name);
+					in.skipValue();
+					break;
 			}
 		}
 		in.endObject();
@@ -76,8 +91,11 @@ class VaultSettingsJsonAdapter {
 		vaultSettings.path().set(Paths.get(path));
 		vaultSettings.winDriveLetter().set(winDriveLetter);
 		vaultSettings.unlockAfterStartup().set(unlockAfterStartup);
-		vaultSettings.mountAfterUnlock().set(mountAfterUnlock);
 		vaultSettings.revealAfterMount().set(revealAfterMount);
+		vaultSettings.usesIndividualMountPath().set(usesIndividualMountPath);
+		vaultSettings.individualMountPath().set(individualMountPath);
+		vaultSettings.usesReadOnlyMode().set(usesReadOnlyMode);
+		vaultSettings.mountFlags().set(mountFlags);
 		return vaultSettings;
 	}
 

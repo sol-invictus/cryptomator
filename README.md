@@ -1,14 +1,29 @@
-![cryptomator](cryptomator.png)
+[![cryptomator](cryptomator.png)](https://cryptomator.org/)
 
 [![Build Status](https://travis-ci.org/cryptomator/cryptomator.svg?branch=master)](https://travis-ci.org/cryptomator/cryptomator)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/cryptomator-cryptomator/badge.svg?flat=1)](https://scan.coverity.com/projects/cryptomator-cryptomator)
+[![Known Vulnerabilities](https://snyk.io/test/github/cryptomator/cryptomator/badge.svg?targetFile=main%2Fpom.xml)](https://snyk.io/test/github/cryptomator/cryptomator?targetFile=main%2Fpom.xml)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/2a0adf3cec6a4143b91035d3924178f1)](https://www.codacy.com/app/cryptomator/cryptomator?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=cryptomator/cryptomator&amp;utm_campaign=Badge_Grade)
 [![Twitter](https://img.shields.io/badge/twitter-@Cryptomator-blue.svg?style=flat)](http://twitter.com/Cryptomator)
 [![POEditor](https://img.shields.io/badge/POEditor-Help%20Translate-blue.svg?style=flat)](https://poeditor.com/join/project/bHwbvJmx0E)
 [![Latest Release](https://img.shields.io/github/release/cryptomator/cryptomator.svg)](https://github.com/cryptomator/cryptomator/releases/latest)
 [![Community](https://img.shields.io/badge/help-Community-orange.svg)](https://community.cryptomator.org)
 
-Multi-platform transparent client-side encryption of your files in the cloud.
+## Supporting Cryptomator
+
+Cryptomator is provided free of charge as an open-source project despite the high development effort and is therefore dependent on donations. If you are also interested in further development, we offer you the opportunity to support us:
+
+- [One-time or recurring donation via Cryptomator's website.](https://cryptomator.org/#donate)
+- [Become a sponsor via Cryptomator's sponsors website.](https://cryptomator.org/sponsors/)
+
+### Silver Sponsors
+
+[![TheBestVPN](https://cryptomator.org/img/sponsors/thebestvpn.png)](https://thebestvpn.com/)
+
+---
+
+## Introduction
+
+Cryptomator offers multi-platform transparent client-side encryption of your files in the cloud.
 
 Download native binaries of Cryptomator on [cryptomator.org](https://cryptomator.org/) or clone and build Cryptomator using Maven (instructions below).
 
@@ -46,8 +61,7 @@ For more information on the security details visit [cryptomator.org](https://cry
 
 ### Dependencies
 
-* Java 8 (min. 8u51, we recommend to use the current version)
-* [JCE unlimited strength policy files](http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html) (needed for 256-bit keys)
+* JDK 11 (we recommend to use the latest version)
 * Maven 3
 * Optional: OS-dependent build tools for native packaging (see [Windows](https://github.com/cryptomator/cryptomator-win), [OS X](https://github.com/cryptomator/cryptomator-osx), [Linux](https://github.com/cryptomator/builder-containers))
 
@@ -58,7 +72,11 @@ cd main
 mvn clean install -Prelease
 ```
 
-An executable jar file will be created inside `main/uber-jar/target`.
+This will build all the jars and bundle them together with their OS-specific dependencies under `main/buildkit/target`. This can now be used to build native packages.
+
+### Start Cryptomator
+
+If you unzip the buildkit for your OS, you will find a launcher script with some basic settings. You might want to adjust these to your needs. To start Cryptomator, simply execute the launcher script from a terminal, e.g. `launcher-linux.sh`, if you're on a Linux system.
 
 ## License
 

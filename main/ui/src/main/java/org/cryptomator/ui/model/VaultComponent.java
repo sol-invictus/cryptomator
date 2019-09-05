@@ -5,7 +5,8 @@
  *******************************************************************************/
 package org.cryptomator.ui.model;
 
-import org.cryptomator.ui.model.VaultModule.PerVault;
+import dagger.BindsInstance;
+import org.cryptomator.common.settings.VaultSettings;
 
 import dagger.Subcomponent;
 
@@ -17,7 +18,9 @@ public interface VaultComponent {
 
 	@Subcomponent.Builder
 	interface Builder {
-		Builder vaultModule(VaultModule module);
+
+		@BindsInstance
+		Builder vaultSettings(VaultSettings vaultSettings);
 
 		VaultComponent build();
 	}

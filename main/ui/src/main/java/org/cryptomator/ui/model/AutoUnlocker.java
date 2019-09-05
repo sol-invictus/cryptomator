@@ -5,6 +5,14 @@
  *******************************************************************************/
 package org.cryptomator.ui.model;
 
+import org.cryptomator.common.FxApplicationScoped;
+import org.cryptomator.cryptolib.api.CryptoException;
+import org.cryptomator.keychain.KeychainAccess;
+import org.cryptomator.keychain.KeychainAccessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.CharBuffer;
 import java.util.Arrays;
@@ -14,16 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
-import org.cryptomator.cryptolib.api.CryptoException;
-import org.cryptomator.frontend.webdav.mount.Mounter.CommandFailedException;
-import org.cryptomator.keychain.KeychainAccess;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-@Singleton
+@FxApplicationScoped
 public class AutoUnlocker {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AutoUnlocker.class);
@@ -67,30 +66,19 @@ public class AutoUnlocker {
 	}
 
 	private void unlockSilently(Vault vault) {
-		char[] storedPw = keychainAccess.get().loadPassphrase(vault.getId());
-		if (storedPw == null) {
-			LOG.warn("No passphrase stored in keychain for vault registered for auto unlocking: {}", vault.getPath());
-			return;
-		}
+		char[] storedPw = new char[0];
 		try {
+			storedPw = keychainAccess.get().loadPassphrase(vault.getId());
+			if (storedPw == null) {
+				LOG.warn("No passphrase stored in keychain for vault registered for auto unlocking: {}", vault.getPath());
+				return;
+			}
 			vault.unlock(CharBuffer.wrap(storedPw));
-			mountSilently(vault);
-		} catch (IOException | CryptoException e) {
+			revealSilently(vault);
+		} catch (IOException | CryptoException | Volume.VolumeException | KeychainAccessException e) {
 			LOG.error("Auto unlock failed.", e);
 		} finally {
 			Arrays.fill(storedPw, ' ');
-		}
-	}
-
-	private void mountSilently(Vault unlockedVault) {
-		if (!unlockedVault.getVaultSettings().mountAfterUnlock().get()) {
-			return;
-		}
-		try {
-			unlockedVault.mount();
-			revealSilently(unlockedVault);
-		} catch (CommandFailedException e) {
-			LOG.error("Auto unlock succeded, but mounting the drive failed.", e);
 		}
 	}
 
@@ -100,7 +88,7 @@ public class AutoUnlocker {
 		}
 		try {
 			mountedVault.reveal();
-		} catch (CommandFailedException e) {
+		} catch (Volume.VolumeException e) {
 			LOG.error("Auto unlock succeded, but revealing the drive failed.", e);
 		}
 	}

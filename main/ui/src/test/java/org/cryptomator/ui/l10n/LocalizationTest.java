@@ -8,6 +8,11 @@
  *******************************************************************************/
 package org.cryptomator.ui.l10n;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -21,18 +26,14 @@ import java.util.ResourceBundle;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class LocalizationTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalizationTest.class);
 	private static final String RESOURCE_FOLDER_PATH = "/localization/";
 	private static final String REF_FILE_NAME = "en.txt";
-	private static final String[] LANG_FILE_NAMES = {"ar.txt", "bg.txt", "da.txt", "de.txt", "es.txt", "fr.txt", "hu.txt", "it.txt", "ja.txt", //
-			"ko.txt", "lv.txt", "nl.txt", "pl.txt", "pt.txt", "pt_BR.txt", "ru.txt", "sk.txt", "th.txt", "tr.txt", "uk.txt", "zh_HK.txt", "zh_TW.txt", "zh.txt"};
+	private static final String[] LANG_FILE_NAMES = {"ar.txt", "bg.txt", "ca.txt", "cs.txt", "da.txt", "de.txt", "es.txt", "fr.txt", "fr_BE.txt", "fr_CA.txt", "hu.txt", //
+			"in.txt", "it.txt", "ja.txt", "ko.txt", "lv.txt", "nl.txt", "pl.txt", "pt.txt", "pt_BR.txt", "ru.txt", "sk.txt", "sv.txt", "th.txt", "tr.txt", "uk.txt", //
+			"zh_HK.txt", "zh_TW.txt", "zh.txt"};
 
 	/*
 	 * @see Formatter
@@ -54,7 +55,7 @@ public class LocalizationTest {
 			ResourceBundle lang = loadLanguage(RESOURCE_FOLDER_PATH + langFileName);
 			allGood &= allStringFormatSpecifiersMatchReferenceLanguage(ref, lang, langFileName);
 		}
-		Assert.assertTrue(allGood);
+		Assertions.assertTrue(allGood);
 	}
 
 	private boolean allStringFormatSpecifiersMatchReferenceLanguage(ResourceBundle ref, ResourceBundle lang, String langFileName) {

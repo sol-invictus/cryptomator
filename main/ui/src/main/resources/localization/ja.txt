@@ -12,7 +12,7 @@ welcome.newVersionMessage = バージョン %1$s がダウンロード可能で�
 initialize.label.password = パスワード
 initialize.label.retypePassword = パスワードの再入力
 initialize.button.ok = 金庫を作成
-initialize.messageLabel.alreadyInitialized = 金庫は既に初期化されています。
+initialize.messageLabel.alreadyInitialized = 金庫は既に初期化されています
 initialize.messageLabel.initializationFailed = 金庫の初期化ができませんでした。詳細はログファイルをご覧ください。
 # notfound.fxml
 notfound.label = 金庫が見つかりません。移動しましたか?
@@ -23,6 +23,7 @@ upgrade.version3dropBundleExtension.err.alreadyExists = 自動移行が失敗し
 # unlock.fxml
 unlock.label.password = パスワード
 unlock.label.mountName = ドライブ名
+# Fuzzy
 unlock.label.winDriveLetter = ドライブ文字
 unlock.label.downloadsPageLink = すべての Cryptomator バージョン
 unlock.label.advancedHeading = 詳細オプション
@@ -31,9 +32,8 @@ unlock.button.advancedOptions.show = オプションを表示
 unlock.button.advancedOptions.hide = オプションを非表示
 unlock.choicebox.winDriveLetter.auto = 自動的に割り当てる
 unlock.errorMessage.wrongPassword = パスワードが無効です
-unlock.errorMessage.unsupportedVersion.vaultOlderThanSoftware = サポートされない金庫です。この金庫は古いバージョンの Cryptomator から作成されました。
-unlock.errorMessage.unsupportedVersion.softwareOlderThanVault = サポートされない金庫です。この金庫は新しいバージョンの Cryptomator から作成されました。
-unlock.messageLabel.startServerFailed = WebDAV サーバーの起動に失敗しました。
+unlock.errorMessage.unsupportedVersion.vaultOlderThanSoftware = サポートされない金庫です。この金庫は古いバージョンの Cryptomator を使用して作成されました。
+unlock.errorMessage.unsupportedVersion.softwareOlderThanVault = サポートされない金庫です。この金庫は新しいバージョンの Cryptomator を使用して作成されました。
 # change_password.fxml
 changePassword.label.oldPassword = 古いパスワード
 changePassword.label.newPassword = 新しいパスワード
@@ -45,7 +45,6 @@ changePassword.errorMessage.decryptionFailed = 復号に失敗しました。
 # unlocked.fxml
 unlocked.button.lock = 金庫の施錠
 unlocked.moreOptions.reveal = ドライブの表示
-unlocked.moreOptions.copyUrl = WebDAV URL のコピー
 unlocked.label.revealFailed = 入力エラー
 unlocked.label.unmountFailed = ドライブの取り出しに失敗
 unlocked.label.statsEncrypted = 暗号化済み
@@ -54,9 +53,6 @@ unlocked.ioGraph.yAxis.label = スループット (MiB/s)
 # settings.fxml
 settings.version.label = バージョン %s
 settings.checkForUpdates.label = 最新版のチェック
-settings.port.label = WebDAV ポート
-settings.port.prompt = 0 \= 自動的に選択
-settings.requiresRestartLabel = *Cryptomatorの再起動が必要
 # tray icon
 tray.menu.open = 開く
 tray.menu.quit = 閉じる
@@ -74,33 +70,59 @@ main.directoryList.remove.confirmation.header = この金庫を本当に削除�
 main.directoryList.remove.confirmation.content = 金庫はリストのみで削除されます。完全に削除するには、ファイルシステムからファイルを削除してください。
 upgrade.version3to4.msg = この金庫は新しいフォーマットに移行する必要があります。\n暗号化されたフォルダの名前は更新されます。\n続行する前に同期が完了していることをご確認ください。
 upgrade.version3to4.err.io = I/O の例外で移行に失敗しました。詳細はログをご確認ください。
-settings.prefGvfsScheme.label = WebDAV スキーム
 # upgrade.fxml
 upgrade.confirmation.label = はい、同期が完了していることを確認しました。
 unlock.label.savePassword = パスワードを保存
 unlock.errorMessage.unauthenticVersionMac = MAC バージョンを認証できません。
-unlocked.label.mountFailed = ドライブの接続に失敗
 unlock.savePassword.delete.confirmation.title = 保存済みのパスワードを削除
 unlock.savePassword.delete.confirmation.header = 本当にこの金庫の保存済みパスワードを削除しますか?
 unlock.savePassword.delete.confirmation.content = この金庫の保存済みパスワードは、直ちにシステムのキーチェーンから削除されます。もう一度パスワードを保存するには、"Save Password" オプションを有効にして金庫を解錠する必要があります。
-settings.debugMode.label = デバッグモード *
+settings.debugMode.label = デバッグモード
 upgrade.version3dropBundleExtension.title = 金庫をバージョン 3 にアップグレード(Drop Bundle Extension)
 upgrade.version3to4.title = 金庫をバージョン 3 から 4 にアップグレード
 upgrade.version4to5.title = 金庫をバージョン 4 から 5 にアップグレード
 upgrade.version4to5.msg = この金庫は新しいフォーマットに移行する必要があります。\n暗号化されたファイルは更新されます。\n続行する前に同期が完了していることをご確認ください。\n\n注意：すべてのファイルの変更日は、現在の日付・時刻に変わります。
 upgrade.version4to5.err.io = I/O の例外で移行に失敗しました。詳細はログをご確認ください。
-settings.port.apply = 適用
-unlock.label.mountAfterUnlock = ドライブをマウント
 unlock.label.revealAfterMount = ドライブの表示
 unlocked.lock.force.confirmation.title = %1$s の施錠に失敗しました
 unlocked.lock.force.confirmation.header = 強制的にロックしますか？
 unlocked.lock.force.confirmation.content = これは恐らく他のプログラムがこの金庫のファイルをまだアクセスしているか、あるいは別の問題が発生したためです。\n\nまだファイルにアクセスしているプログラムが正しく動作しない可能性があり、それらのプログラムによってまだ書き込まれていないデータが失われる可能性があります。
 unlock.label.unlockAfterStartup = 起動時に解錠 (実験的)
 unlock.errorMessage.unlockFailed = 施錠に失敗しました。詳細をログファイルで確認してください。
-unlocked.moreOptions.mount = ドライブのマウント
-unlocked.moreOptions.unmount = ドライブの取り出し
 upgrade.version5toX.title = 金庫のバージョンをアップグレード
 upgrade.version5toX.msg = この金庫を新しいバージョンに移行する必要があります。\n進行する前に同期が完了していることをご確認ください。
-main.createVault.nonEmptyDir.title = Creating vault failed
-main.createVault.nonEmptyDir.header = Chosen directory is not empty
-main.createVault.nonEmptyDir.content = The selected directory already contains files (possibly hidden). A vault can only be created in an empty directory.
+main.createVault.nonEmptyDir.title = 金庫の作成が失敗しました
+main.createVault.nonEmptyDir.header = 選択したディレクトリが空ではありません
+main.createVault.nonEmptyDir.content = 選択したディレクトリには、既にファイルがあります (非表示になっている可能性があります)。金庫は空のディレクトリにのみ作成可能です。
+settings.webdav.port.label = WebDAV ポート
+settings.webdav.port.prompt = 0 \= 自動的に選択
+settings.webdav.port.apply = 適用
+settings.webdav.prefGvfsScheme.label = WebDAV スキーム
+settings.volume.label = マウント方法
+settings.volume.webdav = WebDAV
+settings.volume.fuse = FUSE
+unlock.successLabel.vaultCreated = 金庫が正常に作成されました。
+unlock.successLabel.passwordChanged = パスワードが正常に変更されました。
+unlock.successLabel.upgraded = 金庫が正常にアップグレードされました。
+# Fuzzy
+unlock.label.useOwnMountPath = カスタムマウントポイントを使う
+welcome.askForUpdateCheck.dialog.title = アップデート確認
+welcome.askForUpdateCheck.dialog.header = 統合アップデート確認を有効にしますか？
+welcome.askForUpdateCheck.dialog.content = 推奨事項\: 更新プログラムのチェックを有効にして、常にすべてのセキュリティ パッチが適応された Cryptomator の最新バージョンを利用してください。\n\nこの設定はいつでも設定から変更できます。
+settings.volume.dokany = Dokany
+main.gracefulShutdown.dialog.title = 金庫のロックに失敗しました。
+main.gracefulShutdown.dialog.header = 金庫が使用中です。
+main.gracefulShutdown.dialog.content = 金庫が複数のプログラムによって使用されています。Cryptomator を正常に終了できるようにプログラムを閉じてから、もう一度やり直してください。\n\n閉じなくても Cryptomator を強制的に終了することはできますが、データの損失を発生しかねないためお勧めできません。
+main.gracefulShutdown.button.tryAgain = やり直す
+main.gracefulShutdown.button.forceShutdown = 強制終了
+unlock.pendingMessage.unlocking = 金庫を解錠しています...
+unlock.failedDialog.title = 解錠に失敗しました
+unlock.failedDialog.header = 解錠に失敗しました
+unlock.failedDialog.content.mountPathNonExisting = マウントポイントが存在しません。
+unlock.failedDialog.content.mountPathNotEmpty = マウントポイントが空ではありません。
+unlock.label.useReadOnlyMode = 読み取り専用
+unlock.label.chooseMountPath = 空のディレクトリを選択...
+ctrl.secPasswordField.nonPrintableChars = パスワードに制御文字が含まれています。\n推奨事項\: 他のクライアントとの互換性のために、制御文字は削除してください。
+ctrl.secPasswordField.capsLocked = Caps Lock が有効です。
+unlock.label.useCustomMountFlags = Custom Mount Flags
+unlock.choicebox.winDriveLetter.occupied = occupied

@@ -1,21 +1,21 @@
 app.name = Cryptomator
 # main.fxml
-main.emptyListInstructions = 点按这里添加资料库
+main.emptyListInstructions = 单击此处添加资料库
 main.directoryList.contextMenu.remove = 从列表中移除
 main.directoryList.contextMenu.changePassword = 变更密码
-main.addDirectory.contextMenu.new = 新建资料库
-main.addDirectory.contextMenu.open = 使用现有资料库
+main.addDirectory.contextMenu.new = 创建新资料库
+main.addDirectory.contextMenu.open = 打开现有资料库
 # welcome.fxml
 welcome.checkForUpdates.label.currentlyChecking = 检查更新中……
 welcome.newVersionMessage = 新版本 %1$s 已发布\n当前版本%2$s
 # initialize.fxml
 initialize.label.password = 密码
 initialize.label.retypePassword = 重新输入密码
-initialize.button.ok = 新建资料库
-initialize.messageLabel.alreadyInitialized = 已新建资料库
-initialize.messageLabel.initializationFailed = 无法创建资料库。请查看日志来获得详细信息。
+initialize.button.ok = 创建资料库
+initialize.messageLabel.alreadyInitialized = 资料库已创建
+initialize.messageLabel.initializationFailed = 无法创建资料库。请查看日志来获取详细信息。
 # notfound.fxml
-notfound.label = 找不到这个资料库，是否已移动到别的地方？
+notfound.label = 找不到资料库，是否已移动到其他地方？
 # upgrade.fxml
 upgrade.button = 升级资料库
 upgrade.version3dropBundleExtension.msg = 此资料库需要升级至最新版本，\n"%1$s" 将重命名为 "%2$s"。\n请确保同步完成后再继续操作。
@@ -23,7 +23,8 @@ upgrade.version3dropBundleExtension.err.alreadyExists = 自动迁移失败。\n�
 # unlock.fxml
 unlock.label.password = 密码
 unlock.label.mountName = 驱动器名称
-unlock.label.winDriveLetter = 驱动器号
+# Fuzzy
+unlock.label.winDriveLetter = 驱动器盘符
 unlock.label.downloadsPageLink = 所有 Cryptomator 版本
 unlock.label.advancedHeading = 高级选项
 unlock.button.unlock = 解锁资料库
@@ -33,7 +34,6 @@ unlock.choicebox.winDriveLetter.auto = 自动分配
 unlock.errorMessage.wrongPassword = 密码错误
 unlock.errorMessage.unsupportedVersion.vaultOlderThanSoftware = 此资料库属于过时版本的 Cryptomator，无法在此版本中使用。
 unlock.errorMessage.unsupportedVersion.softwareOlderThanVault = 此资料库属于较新版本的 Cryptomator，无法在此版本中使用。
-unlock.messageLabel.startServerFailed = 无法启动 WebDAV 服务器。
 # change_password.fxml
 changePassword.label.oldPassword = 原密码
 changePassword.label.newPassword = 新密码
@@ -45,64 +45,85 @@ changePassword.errorMessage.decryptionFailed = 解密失败
 # unlocked.fxml
 unlocked.button.lock = 锁定资料库
 unlocked.moreOptions.reveal = 打开驱动器
-unlocked.moreOptions.copyUrl = 复制 WebDAV 网址
-unlocked.label.revealFailed = 指令无法执行
+unlocked.label.revealFailed = 命令无法执行
 unlocked.label.unmountFailed = 无法弹出驱动器
 unlocked.label.statsEncrypted = 已加密
 unlocked.label.statsDecrypted = 已解密
-unlocked.ioGraph.yAxis.label = 吞吐量 (Mib/s)
+unlocked.ioGraph.yAxis.label = 吞吐量 (MB/s)
 # settings.fxml
 settings.version.label = 版本 %s
 settings.checkForUpdates.label = 检查更新
-# What's the "*" mean?
-settings.port.label = WebDAV 端口*
-settings.port.prompt = 0 \= 自动选择
-settings.requiresRestartLabel = * Cryptomator 需要重启
 # tray icon
 tray.menu.open = 打开
 tray.menu.quit = 退出
 tray.infoMsg.title = 仍在运行
-tray.infoMsg.msg = Cryptomator 仍在运行。 从托盘图标中退出。
-tray.infoMsg.msg.osx = Cryptomator 仍在运行。 从菜单栏图标中退出。
-initialize.messageLabel.passwordStrength.0 = 非常弱
-initialize.messageLabel.passwordStrength.1 = 略弱
-initialize.messageLabel.passwordStrength.2 = 可接受
+tray.infoMsg.msg = Cryptomator 仍在运行。 请从托盘图标中退出。
+tray.infoMsg.msg.osx = Cryptomator 仍在运行。 请从菜单栏图标中退出。
+initialize.messageLabel.passwordStrength.0 = 极弱
+initialize.messageLabel.passwordStrength.1 = 较弱
+initialize.messageLabel.passwordStrength.2 = 一般
 initialize.messageLabel.passwordStrength.3 = 较强
-initialize.messageLabel.passwordStrength.4 = 非常强
+initialize.messageLabel.passwordStrength.4 = 极强
 initialize.label.doNotForget = 重要：若忘记此密码，数据将无法找回。
 main.directoryList.remove.confirmation.title = 移除资料库
 main.directoryList.remove.confirmation.header = 确定要移除此资料库吗？
 main.directoryList.remove.confirmation.content = 资料库将仅从列表中移除，如需永久删除，请从文件系统中删除这些文件。
 upgrade.version3to4.msg = 此资料库需要升级至最新版本，\n已加密的文件夹名称将更新。\n请确保同步完成后再继续操作。
 upgrade.version3to4.err.io = 由于 I/O 异常，迁移失败。请查看日志来获得详细信息。
-settings.prefGvfsScheme.label = WebDAV 格式
 # upgrade.fxml
-upgrade.confirmation.label = 没错，同步已完成。
+upgrade.confirmation.label = 没错，我确定同步均已完成。
 unlock.label.savePassword = 保存密码
 # This Mac means Mac(Apple) or Mac address?
 unlock.errorMessage.unauthenticVersionMac = 无法确认消息认证码版本。
-unlocked.label.mountFailed = 无法连接到驱动器
 unlock.savePassword.delete.confirmation.title = 删除已储存的密码
 unlock.savePassword.delete.confirmation.header = 真的要删除为此资料库储存的密码吗?
 unlock.savePassword.delete.confirmation.content = 此资料库储存的密码将立即从系统钥匙串中删除。如果您想再次保存密码，则必须通过启用“保存密码”选项启用您的密码库。
-settings.debugMode.label = 调试模式 *
+settings.debugMode.label = 调试模式
 upgrade.version3dropBundleExtension.title = 升级资料库到第三版（移除 Bundle Extension）
 upgrade.version3to4.title = 升级资料库到第四版
 upgrade.version4to5.title = 升级资料库到第五版
 upgrade.version4to5.msg = 此资料库需要升级至最新版本，\n已加密的数据将被更新。\n请确保同步完成后再继续操作。
 upgrade.version4to5.err.io = 升级因 I/O 错误失败。请查看日志来获得详细信息。
-settings.port.apply = 应用
-unlock.label.mountAfterUnlock = 装载驱动器
 unlock.label.revealAfterMount = 显示驱动器
 unlocked.lock.force.confirmation.title = 无法锁定 %1$s
 unlocked.lock.force.confirmation.header = 要强制锁定吗？
 unlocked.lock.force.confirmation.content = 此错误可能是因为其他应用程序仍在使用此资料库中的文件，或遇到了其他问题。\n\n如强制锁定，正在使用文件的应用程序可能会出错并丢失部分还没有保存的资料。
 unlock.label.unlockAfterStartup = 启动时自动解锁（试验功能）
 unlock.errorMessage.unlockFailed = 无法解锁。请查看日志来获得详细信息。
-unlocked.moreOptions.mount = 装载驱动器
-unlocked.moreOptions.unmount = 弹出驱动器
 upgrade.version5toX.title = 资料库版本升级
 upgrade.version5toX.msg = 此资料库需要升级至最新版本，\n请确保同步完成后再继续操作。
-main.createVault.nonEmptyDir.title = Creating vault failed
-main.createVault.nonEmptyDir.header = Chosen directory is not empty
-main.createVault.nonEmptyDir.content = The selected directory already contains files (possibly hidden). A vault can only be created in an empty directory.
+main.createVault.nonEmptyDir.title = 创建资料库失败
+main.createVault.nonEmptyDir.header = 选择的目录不为空
+main.createVault.nonEmptyDir.content = 选择的目录含有文件（可能是隐藏的）。资料库只能创建在空目录
+settings.webdav.port.label = webDav端口
+settings.webdav.port.prompt = 0\=自动选择WebDav端口
+settings.webdav.port.apply = 设定
+settings.webdav.prefGvfsScheme.label = WebDAV计划
+settings.volume.label = 首选卷类型
+settings.volume.webdav = WebDAV
+settings.volume.fuse = FUSE
+unlock.successLabel.vaultCreated = 资料库成功创建
+unlock.successLabel.passwordChanged = 密码成功更改
+unlock.successLabel.upgraded = Cryptomator 成功升级
+# Fuzzy
+unlock.label.useOwnMountPath = 无效的挂载点
+welcome.askForUpdateCheck.dialog.title = 检查更新
+welcome.askForUpdateCheck.dialog.header = 启用更新检查？
+welcome.askForUpdateCheck.dialog.content = 启用检查更新，Cryptomator将从Cryptomator服务器获取当前版本，并在有新版本时提示。\n我们建议您启用更新检查，以确保安装了最新版的Cryptomator，并安装了所有安全补丁。如果您未启用更新检查，则需要您自己到https\://cryptomator.org/downloads/ 检查并下载最新版本。\n你可以随时在设置中更改此设置。
+settings.volume.dokany = Dokany
+main.gracefulShutdown.dialog.title = 资料库锁定失败
+main.gracefulShutdown.dialog.header = 资料库正在使用
+main.gracefulShutdown.dialog.content = 一个或多个资料库正在被其他应用程序调用。若要正常退出 Cryptomator 请先关闭这些应用，然后重试。\n\n如果上述操作无效，也可以强制退出 Cryptomator，但这将导致数据丢失，请尽量避免如此退出。
+main.gracefulShutdown.button.tryAgain = 重试
+main.gracefulShutdown.button.forceShutdown = 强制退出
+unlock.pendingMessage.unlocking = 解锁资料库
+unlock.failedDialog.title = 解锁失败
+unlock.failedDialog.header = 解锁失败
+unlock.failedDialog.content.mountPathNonExisting = 挂载点不存在。
+unlock.failedDialog.content.mountPathNotEmpty = 挂载点非空。
+unlock.label.useReadOnlyMode = 只读
+unlock.label.chooseMountPath = 选择空目录...
+ctrl.secPasswordField.nonPrintableChars = 密码包含控制字符。\n建议\:删除它们，以确保与其他客户机兼容。
+ctrl.secPasswordField.capsLocked = 大写锁定被激活
+unlock.label.useCustomMountFlags = Custom Mount Flags
+unlock.choicebox.winDriveLetter.occupied = occupied

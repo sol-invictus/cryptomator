@@ -5,10 +5,10 @@
  *******************************************************************************/
 package org.cryptomator.common.settings;
 
-import java.io.IOException;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Assert;
-import org.junit.Test;
+import java.io.IOException;
 
 public class SettingsJsonAdapterTest {
 
@@ -21,17 +21,17 @@ public class SettingsJsonAdapterTest {
 		String json = "{\"directories\": [" + vault1Json + "," + vault2Json + "]," //
 				+ "\"checkForUpdatesEnabled\": true,"//
 				+ "\"port\": 8080,"//
-				+ "\"useIpv6\": true,"//
-				+ "\"numTrayNotifications\": 42}";
+				+ "\"numTrayNotifications\": 42,"//
+				+ "\"preferredVolumeImpl\": \"FUSE\"}";
 
 		Settings settings = adapter.fromJson(json);
 
-		Assert.assertTrue(settings.checkForUpdates().get());
-		Assert.assertEquals(2, settings.getDirectories().size());
-		Assert.assertEquals(8080, settings.port().get());
-		// Assert.assertTrue(settings.useIpv6().get()); temporarily ignored
-		Assert.assertEquals(42, settings.numTrayNotifications().get());
-		Assert.assertEquals("dav", settings.preferredGvfsScheme().get());
+		Assertions.assertTrue(settings.checkForUpdates().get());
+		Assertions.assertEquals(2, settings.getDirectories().size());
+		Assertions.assertEquals(8080, settings.port().get());
+		Assertions.assertEquals(42, settings.numTrayNotifications().get());
+		Assertions.assertEquals("dav", settings.preferredGvfsScheme().get());
+		Assertions.assertEquals(VolumeImpl.FUSE, settings.preferredVolumeImpl().get());
 	}
 
 }
